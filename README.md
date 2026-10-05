@@ -1,77 +1,70 @@
 # Erzähltes Sims – Familie Weidauer
 
-Ein kleines Familienexperiment mit Python, Ollama und Piper: Eine lokale KI erzählt einen ganz normalen Schulmorgen der Familie Weidauer als fortlaufende, leicht überdrehte Familien-Sitcom.
+Eine lokale, erzählte Familien-Simulation mit Python, Ollama und Piper.
 
-Die Figuren handeln auf Basis ihrer Eigenschaften, der Morgen schreitet von 06:00 bis ungefähr 07:30 Uhr voran und wörtliche Rede wird mit unterschiedlichen Piper-Stimmen vorgelesen.
+## Ablauf
 
-## Die Figuren
+Jeder Druck auf Enter erzeugt die **nächste** Phase desselben Morgens:
 
-- **Johanna** – hält morgens den Laden zusammen, macht Vesper, weckt liebevoll und wird verständlicherweise nervös, wenn niemand aufstehen will.
-- **Ray** – gibt sein Bestes aufzustehen, stellt keinen Wecker und vertraut dem Dao sowie gelegentlich Johanna.
-- **Lotta** – Klasse 4, sehr lustig, manchmal mit etwas zu langem Atem bei Gags gegenüber Jasper.
-- **Jasper** – Klasse 1, noch nicht ganz mit dem frühen Rhythmus versöhnt, braucht morgens Hilfe und entdeckt gern kurz vor dem Losgehen noch Hunger.
-- **Helena** – Klasse 9, ordentlich, hilfsbereit und selbstständig; weil sie später losmuss, bleibt sie morgens gern noch etwas länger in ihrem Zimmer.
+1. 06:05 – Wecker und Schlummern
+2. 06:30 – Johanna und Ray machen Vesper
+3. 06:45 – Lotta und Jasper werden geweckt
+4. 07:00 – Aufstehen, Zähne, Anziehen, Frühstück
+5. 07:10 – Helena taucht kurz auf und hilft
+6. 07:20 – die markierte Losgehzeit ist erreicht
+7. 07:30 – Johanna, Ray, Lotta und Jasper verlassen gemeinsam das Haus
 
-## Der Morgen
+Die vorige Szene wird der KI jeweils als Kontext mitgegeben, damit sie nicht einfach dieselben Dialoge wiederholt.
 
-Die KI orientiert sich an diesen festen Punkten:
+Rays Gelassenheit gehört zu seiner Figur, aber **„Dao“ ist kein Running Gag** und wird im Szenentext aktuell bewusst nicht verwendet.
 
-- 06:00 – Wecker klingelt, Schlummern
-- 06:30 – Eltern aufstehen, Vesper machen
-- 06:45 – Lotta und Jasper erstmals wecken
-- 07:00 – spätestens aufstehen, Zähne putzen, essen
-- 07:20 – angepeilte Losgehzeit, sichtbar auf der Uhr markiert
-- 07:30 – tatsächliches Losgehen
+## Standard-Stimmen
 
-## Ohne Ollama testen
+Wenn die empfohlenen Stimmen im Ordner `voices/` liegen, werden sie automatisch verwendet:
+
+- Erzähler: `de_DE-thorsten-medium`
+- Johanna: `de_DE-kerstin-low`
+- Ray: `de_DE-thorsten_emotional-medium`
+- Lotta: `de_DE-ramona-low`
+- Jasper: `de_DE-karlsson-low`
+- Helena: `de_DE-eva_k-x_low`
+
+Start:
+
+```bash
+python main.py
+```
+
+Beim Start zeigt das Programm die tatsächlich verwendeten Voice-Dateien an.
+
+Eigene Stimmen können weiterhin per Umgebungsvariable überschrieben werden, z. B.:
+
+```bash
+PIPER_RAY_VOICE="voices/andere-stimme.onnx" python main.py
+```
+
+## Modell
+
+Standard ist:
+
+```text
+qwen3:4b-instruct
+```
+
+Falls nötig:
+
+```bash
+ollama pull qwen3:4b-instruct
+```
+
+Debug-Modus:
+
+```bash
+python main.py --debug
+```
+
+Mock-Modus ohne Ollama:
 
 ```bash
 python main.py --mock
 ```
-
-Der Mock-Modus erzählt bereits einen beispielhaften Weidauer-Morgen.
-
-Mit Debug-Ausgabe:
-
-```bash
-python main.py --mock --debug
-```
-
-## Mit Ollama
-
-```bash
-ollama pull qwen2.5:3b
-python main.py
-```
-
-Die KI bekommt bei jeder Szene den aktuellen Familienzustand und die Morgenregeln und schreibt die Geschichte ein Stück weiter.
-
-## Piper-Stimmen
-
-Die Sprachausgabe erkennt Dialoge wie:
-
-```text
-Johanna: „Aufstehen.“
-Jasper: „Mama soll mich wecken.“
-Ray: „Das Dao hat keinen Wecker.“
-```
-
-und ordnet jedem Namen eine Stimme zu.
-
-Konfigurierbare Variablen:
-
-```bash
-PIPER_NARRATOR_VOICE="voices/de_DE-thorsten-medium.onnx" \
-PIPER_JOHANNA_VOICE="voices/johanna.onnx" \
-PIPER_RAY_VOICE="voices/ray.onnx" \
-PIPER_LOTTA_VOICE="voices/lotta.onnx" \
-PIPER_JASPER_VOICE="voices/jasper.onnx" \
-PIPER_HELENA_VOICE="voices/helena.onnx" \
-python main.py
-```
-
-Wenn keine eigenen Modelle angegeben sind, verwenden zunächst alle die Standardstimme.
-
-## Ziel
-
-Nicht perfekte Simulation, sondern möglichst schnell etwas, bei dem die Familie beim Zuhören sagt: **„Ja. Genau so ist es morgens bei uns.“**
