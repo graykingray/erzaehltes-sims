@@ -13,8 +13,25 @@ Es wird kein OpenAI-API-Key benötigt und die KI läuft lokal auf dem eigenen Re
 - Enter = nächste Szene
 - optionale Sprachausgabe
 - Weltzustand bleibt in Python
+- Mock- und Debug-Modus zum Testen ohne Ollama
 
-## 1. Ollama installieren
+## Sofort testen – ohne Ollama
+
+Damit kann die ganze Spielschleife schon ohne installiertes Modell getestet werden:
+
+```bash
+python main.py --mock --debug
+```
+
+Dabei erscheinen feste Testszenen. Im Debug-Output sieht man genau die Stelle, an der normalerweise eine Anfrage an Ollama geschickt würde, inklusive Prompt und anschließendem Weltzustand.
+
+Ohne Sprachausgabe:
+
+```bash
+python main.py --mock --debug --no-speech
+```
+
+## Ollama installieren
 
 Ollama installieren und anschließend ein kleines Modell laden:
 
@@ -30,13 +47,19 @@ ollama run qwen2.5:3b
 
 Wenn das funktioniert, kann der Chat mit `/bye` wieder beendet werden.
 
-## 2. Erzähltes Sims starten
+## Erzähltes Sims mit Ollama starten
 
 ```bash
 python -m venv .venv
 source .venv/bin/activate
 pip install -r requirements.txt
 python main.py
+```
+
+Mit Debug-Ausgabe der echten Ollama-Aufrufe:
+
+```bash
+python main.py --debug
 ```
 
 Das Programm spricht Ollama lokal unter `http://localhost:11434` an.
