@@ -264,6 +264,15 @@ def ask_ollama(prompt: str, debug: bool = False) -> str:
             f"Ollama hat keine brauchbare Szene geliefert. Rohantwort: {story!r}"
         )
 
+    english_markers = [" the ", " and ", " is ", " are ", " with ", " morning ", " says "]
+    lowered = f" {story.lower()} "
+    if sum(marker in lowered for marker in english_markers) >= 2:
+        retry_prompt = (
+            "Schreibe dieselbe Art Szene, aber AUSSCHLIESSLICH AUF DEUTSCH. "
+            "Kein Englisch. Natürliches deutsches Familiengespräch.\n\n" + prompt
+        )
+        story = _ollama_request(retry_prompt)
+
     return story
 
 
@@ -390,6 +399,8 @@ Zusätzliche Fakten:
 {phase["facts"]}
 
 Regeln:
+- Schreibe ausschließlich auf Deutsch.
+- Verwende natürliches, heutiges Deutsch.
 - 3 bis 5 kurze Sätze.
 - Liebevoller, trockener Familienhumor.
 - Erfinde KEINE neue Handlung außerhalb der beschriebenen Situation.
