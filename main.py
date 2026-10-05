@@ -1,4 +1,5 @@
 import argparse
+import copy
 import json
 import os
 import urllib.error
@@ -138,7 +139,7 @@ def mock_ollama(prompt: str, debug: bool = False) -> dict:
         world["characters"][name].update(changes)
     world["time"] = scene["time"]
 
-    return {"story": scene["story"], "world": world}
+    return {"story": scene["story"], "world": copy.deepcopy(world)}
 
 
 def next_scene(mock: bool = False, debug: bool = False) -> str:
