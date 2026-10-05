@@ -1,13 +1,16 @@
 import json
 import os
-
-from openai import OpenAI
+import urllib.error
+import urllib.request
 
 try:
     import pyttsx3
 except ImportError:
     pyttsx3 = None
 
+
+OLLAMA_URL = "http://localhost:11434/api/generate"
+OLLAMA_MODEL = os.getenv("OLLAMA_MODEL", "qwen2.5:3b")
 
 world = {
     "time": "08:00",
@@ -43,7 +46,34 @@ def speak(text: str) -> None:
         pass
 
 
-def next_scene(client: OpenAI) -> str:
+def ask_ollama(prompt: str) -> dict:
+    body = json.dumps(
+        {
+            "model": OLLAMA_MODEL,
+            "prompt": prompt,
+            "stream": False,
+            "format": "json",
+        }
+    ).encode("utf-8")
+
+    request = urllib.request.Request(
+        OLLAMA_URL,
+        data=body,
+        headers={"Content-Type": "application/json"},
+    )
+
+    try:
+        with urllib.request.urlopen(request) as response:
+            result = json.load(response)
+    except urllib.error.URLError as exc:
+        raise SystemExit(
+            "Ollama ist nicht erreichbar. Läuft Ollama und ist das Modell installiert?"
+        ) from exc
+
+    return json.loads(result["response"])
+
+
+def next_scene() -> str:
     prompt = f"""
 Du leitest eine sehr kleine Sims-artige Simulation für Kinder.
 
@@ -58,33 +88,25 @@ Regeln:
 - Wörtliche Rede immer mit Namen, z. B. Mia: „Hallo!“
 - Keine gefährlichen, gruseligen oder erwachsenen Inhalte.
 - Verändere nur Dinge, die plausibel aus der Szene folgen.
-- Gib am Ende den neuen Zustand als JSON zurück.
+- Hunger und Energie liegen immer zwischen 0 und 100.
+- Gib den vollständigen neuen Weltzustand zurück.
 
-Antworte ausschließlich in diesem JSON-Format:
+Antworte ausschließlich als JSON:
 {{
   "story": "Die erzählte Szene",
   "world": {{ ... kompletter aktualisierter Weltzustand ... }}
 }}
 """
 
-    response = client.responses.create(
-        model="gpt-5.6-mini",
-        input=prompt,
-    )
-
-    data = json.loads(response.output_text)
+    data = ask_ollama(prompt)
     world.clear()
     world.update(data["world"])
     return data["story"]
 
 
 def main() -> None:
-    if not os.getenv("OPENAI_API_KEY"):
-        raise SystemExit("Bitte OPENAI_API_KEY setzen.")
-
-    client = OpenAI()
-
     print("Erzähltes Sims")
+    print(f"Modell: {OLLAMA_MODEL}")
     print("Enter = nächste Szene | q = Ende")
 
     while True:
@@ -92,7 +114,7 @@ def main() -> None:
         if command == "q":
             break
 
-        story = next_scene(client)
+        story = next_scene()
         print("\n" + story)
         speak(story)
 
