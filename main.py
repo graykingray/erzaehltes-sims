@@ -1,5 +1,4 @@
 import argparse
-import copy
 import json
 import os
 import re
@@ -267,41 +266,73 @@ def mock_ollama(prompt: str, debug: bool = False) -> dict:
     scene = mock_scenes[mock_step % len(mock_scenes)]
     mock_step += 1
 
-    world["time"] = scene["time"]
+    return {
+        "story": scene["story"],
+        "time": scene["time"],
+        "changes": {},
+    }
 
-    return {"story": scene["story"], "world": copy.deepcopy(world)}
+
+def compact_world_context() -> dict:
+    return {
+        "time": world["time"],
+        "characters": {
+            name: {
+                "place": data["place"],
+                "state": data["state"],
+            }
+            for name, data in world["characters"].items()
+        },
+    }
+
+
+def apply_scene_update(data: dict) -> None:
+    world["time"] = data.get("time", world["time"])
+
+    for name, changes in data.get("changes", {}).items():
+        if name in world["characters"]:
+            world["characters"][name].update(changes)
 
 
 def next_scene(mock: bool = False, debug: bool = False) -> str:
+    context = compact_world_context()
+
     prompt = f"""
-Du erzählst einen ganz normalen Schulmorgen der Familie Weidauer als kleine humoristische Familiensimulation.
+Du erzählst eine kurze humoristische Szene aus einem Schulmorgen der Familie Weidauer.
 
-AKTUELLER WELTZUSTAND:
-{json.dumps(world, ensure_ascii=False, indent=2)}
+AKTUELL:
+{json.dumps(context, ensure_ascii=False)}
 
-AUFGABE:
-Erzeuge genau EINE kurze nächste Szene, die zeitlich sinnvoll auf den aktuellen Zustand folgt.
-Die Geschichte soll sich wie eine liebevolle Familien-Sitcom anfühlen: nervenaufreibend, chaotisch, warmherzig und mit trockenem Erzählerhumor.
+FIGUREN:
+Johanna: Mama, liebevoll und organisiert, morgens Einsatzleitung; macht Vesper, weckt und hilft beim Anziehen.
+Ray: Papa, bemüht sich aufzustehen, stellt keinen Wecker und vertraut gern dem Dao.
+Lotta: Klasse 4, sehr lustig, übertreibt Gags gegenüber Jasper manchmal.
+Jasper: Klasse 1, morgens müde, braucht Hilfe beim Anziehen, will lieber von Mama geweckt werden; kurz vor Schluss oft noch hungrig.
+Helena: Klasse 9, ordentlich, hilfsbereit, selbstständig; muss später los und bleibt gern länger im Zimmer.
 
-WICHTIGE REGELN:
-- Die Figuren bleiben ihren beschriebenen Persönlichkeiten treu.
-- Niemand wird lächerlich gemacht oder böse dargestellt. Der Humor entsteht aus Alltag, Timing und kleinen Widersprüchen.
-- Johanna hält morgens vieles zusammen, darf genervt sein, bleibt aber liebevoll.
-- Ray bemüht sich, hat aber eine gewisse daoistische Gelassenheit gegenüber Weckern und Zeitplänen.
-- Lotta ist lustig und kann Jasper mit Gags nerven.
-- Jasper ist morgens müde, braucht Hilfe und kann kurz vor Schluss noch Hunger entdecken.
-- Helena ist ordentlich, hilfsbereit und etwas später dran.
-- Beachte die festen Uhrzeiten und Morgen-Meilensteine.
-- Die Zeit muss vorwärts laufen und darf 07:30 nicht überschreiten.
-- Wörtliche Rede IMMER im Format Name: „Satz“, damit die Stimmenzuordnung funktioniert.
-- Schreibe 1 bis 3 kurze Absätze, nicht zu lang.
-- Verändere nur Weltzustand und Zeit plausibel.
-- Gib den vollständigen neuen Weltzustand zurück.
+ZEITPLAN:
+06:00 Wecker und Schlummern.
+06:30 Eltern aufstehen und Vesper machen.
+06:45 Lotta und Jasper erstmals wecken.
+07:00 Aufstehen, Zähne, Essen.
+07:20 angepeilte Losgehzeit, sichtbar auf der Uhr markiert.
+07:30 tatsächliches Losgehen.
+
+REGELN:
+- Erzeuge genau EINE kurze Szene, maximal etwa 120 Wörter.
+- Humorvoll, warmherzig, alltagsnah, niemanden bloßstellen.
+- Zeit muss vorwärts laufen und höchstens 07:30 sein.
+- Wörtliche Rede immer: Name: „Satz“
+- Gib nur Änderungen zurück, nicht den ganzen Weltzustand.
+- Änderungen dürfen nur place und state enthalten.
 
 Antworte ausschließlich als JSON:
 {{
-  "story": "Die erzählte Szene",
-  "world": {{ ... kompletter aktualisierter Weltzustand ... }}
+  "story": "Szene",
+  "time": "HH:MM",
+  "changes": {{
+    "Name": {{"place": "...", "state": "..."}}
+  }}
 }}
 """
 
@@ -310,12 +341,12 @@ Antworte ausschließlich als JSON:
     else:
         data = ask_ollama(prompt, debug=debug)
 
-    world.clear()
-    world.update(data["world"])
+    apply_scene_update(data)
 
     if debug:
-        print("[DEBUG] Neuer Weltzustand:")
-        print(json.dumps(world, ensure_ascii=False, indent=2))
+        print("[DEBUG] Änderungen:")
+        print(json.dumps(data.get("changes", {}), ensure_ascii=False, indent=2))
+        print("[DEBUG] Zeit:", world["time"])
 
     return data["story"]
 
