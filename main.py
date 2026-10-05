@@ -14,7 +14,7 @@ from piper import PiperVoice
 
 
 OLLAMA_URL = "http://localhost:11434/api/chat"
-OLLAMA_MODEL = os.getenv("OLLAMA_MODEL", "qwen2.5:3b")
+OLLAMA_MODEL = os.getenv("OLLAMA_MODEL", "qwen3:4b-instruct")
 PIPER_VOICE = os.getenv("PIPER_VOICE", "voices/de_DE-thorsten-medium.onnx")
 PIPER_NARRATOR_VOICE = os.getenv("PIPER_NARRATOR_VOICE", PIPER_VOICE)
 PIPER_JOHANNA_VOICE = os.getenv("PIPER_JOHANNA_VOICE", PIPER_VOICE)
