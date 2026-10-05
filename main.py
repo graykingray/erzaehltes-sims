@@ -16,34 +16,79 @@ OLLAMA_URL = "http://localhost:11434/api/generate"
 OLLAMA_MODEL = os.getenv("OLLAMA_MODEL", "qwen2.5:3b")
 PIPER_VOICE = os.getenv("PIPER_VOICE", "voices/de_DE-thorsten-medium.onnx")
 PIPER_NARRATOR_VOICE = os.getenv("PIPER_NARRATOR_VOICE", PIPER_VOICE)
-PIPER_MIA_VOICE = os.getenv("PIPER_MIA_VOICE", PIPER_VOICE)
-PIPER_LEO_VOICE = os.getenv("PIPER_LEO_VOICE", PIPER_VOICE)
+PIPER_JOHANNA_VOICE = os.getenv("PIPER_JOHANNA_VOICE", PIPER_VOICE)
+PIPER_RAY_VOICE = os.getenv("PIPER_RAY_VOICE", PIPER_VOICE)
+PIPER_LOTTA_VOICE = os.getenv("PIPER_LOTTA_VOICE", PIPER_VOICE)
+PIPER_JASPER_VOICE = os.getenv("PIPER_JASPER_VOICE", PIPER_VOICE)
+PIPER_HELENA_VOICE = os.getenv("PIPER_HELENA_VOICE", PIPER_VOICE)
 
 VOICE_FILES = {
     "Erzähler": PIPER_NARRATOR_VOICE,
-    "Mia": PIPER_MIA_VOICE,
-    "Leo": PIPER_LEO_VOICE,
+    "Johanna": PIPER_JOHANNA_VOICE,
+    "Ray": PIPER_RAY_VOICE,
+    "Lotta": PIPER_LOTTA_VOICE,
+    "Jasper": PIPER_JASPER_VOICE,
+    "Helena": PIPER_HELENA_VOICE,
 }
 
 world = {
-    "time": "08:00",
-    "places": ["Küche", "Wohnzimmer", "Garten"],
+    "family": "Weidauer",
+    "time": "06:00",
+    "goal": "Alle kommen möglichst liebevoll und halbwegs pünktlich durch den Morgen.",
+    "morning_schedule": [
+        "06:00 Wecker klingelt; Johanna drückt ihn meist noch ein paar Mal weiter.",
+        "06:30 Eltern sollten aufstehen und Vesper machen.",
+        "06:45 Lotta und Jasper werden zum ersten Mal geweckt.",
+        "07:00 Spätestens aufstehen, Zähne putzen und etwas essen.",
+        "07:20 Angepeilte Losgehzeit; diese Uhrzeit ist sichtbar markiert und wird oft erwähnt.",
+        "07:30 Tatsächliches Losgehen."
+    ],
+    "places": [
+        "Elternbett im Wohnzimmer",
+        "Küche",
+        "Bad",
+        "Lottas Zimmer",
+        "Jaspers Zimmer",
+        "Helenas Zimmer",
+        "Flur"
+    ],
     "characters": {
-        "Mia": {
-            "place": "Küche",
-            "hunger": 65,
-            "energy": 80,
-            "mood": "gut",
-            "personality": "neugierig, frech, hilfsbereit",
+        "Johanna": {
+            "role": "Mama",
+            "place": "Elternbett im Wohnzimmer",
+            "state": "noch müde, aber verantwortlich",
+            "personality": "liebevoll, organisiert, morgens die Einsatzleitung; wird genervt, wenn niemand aufstehen will",
+            "morning_facts": "macht Vesper, weckt liebevoll, hilft beim Anziehen und hält den Zeitplan zusammen"
         },
-        "Leo": {
-            "place": "Wohnzimmer",
-            "hunger": 35,
-            "energy": 55,
-            "mood": "müde",
-            "personality": "ruhig, lustig, etwas stur",
+        "Ray": {
+            "role": "Papa",
+            "place": "Lottas Zimmer",
+            "state": "schläft",
+            "personality": "gibt sein Bestes aufzustehen, stellt aber keinen Wecker und vertraut darauf, dass das Dao alles richten wird",
+            "morning_facts": "landet nachts gelegentlich in Lottas Zimmer, wenn Lotta ins Elternbett im Wohnzimmer gewandert ist"
         },
-    },
+        "Lotta": {
+            "role": "Kind, Klasse 4",
+            "place": "Elternbett im Wohnzimmer",
+            "state": "schläft",
+            "personality": "sehr lustig, macht gern Gags und übertreibt sie gegenüber Jasper manchmal",
+            "morning_facts": "wacht nachts oft auf und kommt ins Wohnzimmer; kann morgens mit Quatsch für zusätzliche Dynamik sorgen"
+        },
+        "Jasper": {
+            "role": "Kind, Klasse 1",
+            "place": "Jaspers Zimmer",
+            "state": "schläft",
+            "personality": "noch nicht an den frühen Schulrhythmus gewöhnt, braucht Hilfe beim Anziehen",
+            "morning_facts": "ist genervt, wenn Ray ihn weckt und wünscht sich dann Mama; ganz am Ende fällt ihm oft ein, dass er noch etwas essen will"
+        },
+        "Helena": {
+            "role": "Kind, Klasse 9",
+            "place": "Helenas Zimmer",
+            "state": "schläft",
+            "personality": "ordentlich, hilfsbereit, selbstständig",
+            "morning_facts": "muss später los als die anderen und bleibt deshalb gern so lange wie möglich in ihrem Zimmer"
+        }
+    }
 }
 
 mock_step = 0
@@ -167,45 +212,61 @@ def mock_ollama(prompt: str, debug: bool = False) -> dict:
     mock_scenes = [
         {
             "story": (
-                "Mia schaut sich in der Küche um und entdeckt einen Apfel. "
-                "Mia: „Den esse ich jetzt.“ "
-                "Sie setzt sich an den Tisch und beginnt zu essen."
+                "Um sechs Uhr klingelt der Wecker. Johanna öffnet ein Auge, findet das Geräusch unverschämt optimistisch "
+                "und drückt auf Schlummern. Johanna: „Noch einmal.“ "
+                "Im Elternbett liegt Lotta quer wie ein besonders zufriedener Seestern. Ray schläft derweil in Lottas Zimmer weiter, "
+                "weil das Dao offenbar beschlossen hat, dass dort heute sein Platz ist."
             ),
-            "changes": {
-                "Mia": {"hunger": 45, "place": "Küche", "mood": "gut"},
-            },
-            "time": "08:10",
+            "time": "06:05",
         },
         {
             "story": (
-                "Leo kommt langsam aus dem Wohnzimmer in die Küche. "
-                "Leo: „Was machst du?“ "
-                "Mia grinst. Mia: „Frühstück.“"
+                "Um halb sieben ist aus dem philosophischen Problem des Aufstehens ein logistisches geworden. "
+                "Johanna steht in der Küche und beginnt Vesper zu machen. Johanna: „Ray?“ "
+                "Aus Lottas Zimmer kommt nach einigen Sekunden ein müdes: Ray: „Ich bin praktisch schon unterwegs.“ "
+                "Der Erzähler stellt fest, dass diese Aussage mit dem tatsächlichen Zustand der Bettdecke nur lose verbunden ist."
             ),
-            "changes": {
-                "Leo": {"place": "Küche", "energy": 50, "mood": "neugierig"},
-            },
-            "time": "08:15",
+            "time": "06:32",
         },
         {
             "story": (
-                "Mia steht auf und schaut durch die Gartentür. "
-                "Mia: „Komm, wir gehen raus.“ "
-                "Leo überlegt kurz und folgt ihr in den Garten."
+                "Kurz vor sieben startet die erste Weckrunde. Johanna weckt Lotta und Jasper freundlich. "
+                "Lotta: „Ich bin wach!“ sagt Lotta mit geschlossenen Augen. "
+                "Jasper zieht die Decke höher. Jasper: „Mama soll mich wecken.“ "
+                "Ray, der gerade in der Tür steht, nickt verständnisvoll. Ray: „Das ist ein sehr klarer Wunsch.“"
             ),
-            "changes": {
-                "Mia": {"place": "Garten", "energy": 75},
-                "Leo": {"place": "Garten", "energy": 45, "mood": "gut"},
-            },
-            "time": "08:25",
+            "time": "06:47",
+        },
+        {
+            "story": (
+                "Um sieben Uhr erreicht der Morgen seine betriebliche Kernphase: Zähne, Kleidung, Frühstück. "
+                "Lotta erfindet beim Anziehen einen Witz über Jaspers Socken und führt ihn deutlich länger aus, als der Stoff trägt. "
+                "Johanna: „Lotta. Einmal war lustig.“ "
+                "Helena erscheint ordentlich angezogen im Flur, hilft kurz beim Suchen einer Brotdose und verschwindet danach wieder in ihr Zimmer."
+            ),
+            "time": "07:05",
+        },
+        {
+            "story": (
+                "Die große Uhr zeigt auf die markierte 7:20. Johanna deutet darauf wie eine Fluglotsin auf eine Landebahn. "
+                "Johanna: „Da. Sieben Uhr zwanzig. Das ist unsere Zeit.“ "
+                "Niemand bestreitet die Existenz der Markierung. Ihre praktische Bedeutung bleibt dennoch Gegenstand familieninterner Forschung."
+            ),
+            "time": "07:21",
+        },
+        {
+            "story": (
+                "Um halb acht stehen tatsächlich fast alle im Flur. Schuhe sind an, Taschen sind da, die Tür ist offen. "
+                "Jasper bleibt plötzlich stehen. Jasper: „Ich wollte noch was essen.“ "
+                "Für einen Moment sagt niemand etwas. Dann reicht Johanna ihm mit der Ruhe einer erfahrenen Einsatzleiterin etwas für unterwegs. "
+                "Die Familie Weidauer verlässt das Haus. Der Morgen gilt offiziell als erfolgreich."
+            ),
+            "time": "07:30",
         },
     ]
-
     scene = mock_scenes[mock_step % len(mock_scenes)]
     mock_step += 1
 
-    for name, changes in scene["changes"].items():
-        world["characters"][name].update(changes)
     world["time"] = scene["time"]
 
     return {"story": scene["story"], "world": copy.deepcopy(world)}
@@ -213,20 +274,28 @@ def mock_ollama(prompt: str, debug: bool = False) -> dict:
 
 def next_scene(mock: bool = False, debug: bool = False) -> str:
     prompt = f"""
-Du leitest eine sehr kleine Sims-artige Simulation für Kinder.
+Du erzählst einen ganz normalen Schulmorgen der Familie Weidauer als kleine humoristische Familiensimulation.
 
-Hier ist der aktuelle Weltzustand:
+AKTUELLER WELTZUSTAND:
 {json.dumps(world, ensure_ascii=False, indent=2)}
 
-Erzeuge genau EINE kurze Szene.
+AUFGABE:
+Erzeuge genau EINE kurze nächste Szene, die zeitlich sinnvoll auf den aktuellen Zustand folgt.
+Die Geschichte soll sich wie eine liebevolle Familien-Sitcom anfühlen: nervenaufreibend, chaotisch, warmherzig und mit trockenem Erzählerhumor.
 
-Regeln:
-- Die Figuren handeln selbstständig.
-- Schreibe lebendig, aber kurz.
-- Wörtliche Rede immer mit Namen, z. B. Mia: „Hallo!“
-- Keine gefährlichen, gruseligen oder erwachsenen Inhalte.
-- Verändere nur Dinge, die plausibel aus der Szene folgen.
-- Hunger und Energie liegen immer zwischen 0 und 100.
+WICHTIGE REGELN:
+- Die Figuren bleiben ihren beschriebenen Persönlichkeiten treu.
+- Niemand wird lächerlich gemacht oder böse dargestellt. Der Humor entsteht aus Alltag, Timing und kleinen Widersprüchen.
+- Johanna hält morgens vieles zusammen, darf genervt sein, bleibt aber liebevoll.
+- Ray bemüht sich, hat aber eine gewisse daoistische Gelassenheit gegenüber Weckern und Zeitplänen.
+- Lotta ist lustig und kann Jasper mit Gags nerven.
+- Jasper ist morgens müde, braucht Hilfe und kann kurz vor Schluss noch Hunger entdecken.
+- Helena ist ordentlich, hilfsbereit und etwas später dran.
+- Beachte die festen Uhrzeiten und Morgen-Meilensteine.
+- Die Zeit muss vorwärts laufen und darf 07:30 nicht überschreiten.
+- Wörtliche Rede IMMER im Format Name: „Satz“, damit die Stimmenzuordnung funktioniert.
+- Schreibe 1 bis 3 kurze Absätze, nicht zu lang.
+- Verändere nur Weltzustand und Zeit plausibel.
 - Gib den vollständigen neuen Weltzustand zurück.
 
 Antworte ausschließlich als JSON:
