@@ -1,8 +1,8 @@
 # Erzähltes Sims
 
-Ein kleines Python-Experiment: Figuren leben in einer einfachen Welt, treffen mit Hilfe einer **lokalen KI über Ollama** Entscheidungen, und die Simulation wird als fortlaufende Geschichte erzählt und vorgelesen.
+Ein kleines Python-Experiment: Figuren leben in einer einfachen Welt, treffen mit Hilfe einer **lokalen KI über Ollama** Entscheidungen, und die Simulation wird als fortlaufende Geschichte erzählt und mit **Piper TTS** vorgelesen.
 
-Es wird kein OpenAI-API-Key benötigt und die KI läuft lokal auf dem eigenen Rechner.
+Es wird kein OpenAI-API-Key benötigt. Ollama und Piper laufen lokal.
 
 ## V0
 
@@ -11,19 +11,15 @@ Es wird kein OpenAI-API-Key benötigt und die KI läuft lokal auf dem eigenen Re
 - Hunger, Energie und Stimmung
 - kurze Szenen mit wörtlicher Rede
 - Enter = nächste Szene
-- optionale Sprachausgabe
+- lokale Sprachausgabe mit Piper
 - Weltzustand bleibt in Python
 - Mock- und Debug-Modus zum Testen ohne Ollama
 
 ## Sofort testen – ohne Ollama
 
-Damit kann die ganze Spielschleife schon ohne installiertes Modell getestet werden:
-
 ```bash
 python main.py --mock --debug
 ```
-
-Dabei erscheinen feste Testszenen. Im Debug-Output sieht man genau die Stelle, an der normalerweise eine Anfrage an Ollama geschickt würde, inklusive Prompt und anschließendem Weltzustand.
 
 Ohne Sprachausgabe:
 
@@ -31,51 +27,80 @@ Ohne Sprachausgabe:
 python main.py --mock --debug --no-speech
 ```
 
-## Ollama installieren
-
-Ollama installieren und anschließend ein kleines Modell laden:
-
-```bash
-ollama pull qwen2.5:3b
-```
-
-Zum Testen:
-
-```bash
-ollama run qwen2.5:3b
-```
-
-Wenn das funktioniert, kann der Chat mit `/bye` wieder beendet werden.
-
-## Erzähltes Sims mit Ollama starten
+## Python-Umgebung
 
 ```bash
 python -m venv .venv
 source .venv/bin/activate
 pip install -r requirements.txt
+```
+
+## Piper-Stimme herunterladen
+
+Piper braucht ein Sprachmodell. Für Deutsch verwenden wir zunächst `de_DE-thorsten-medium`.
+
+```bash
+mkdir -p voices
+python -m piper.download_voices --data-dir voices de_DE-thorsten-medium
+```
+
+Danach sollten dort mindestens diese Dateien liegen:
+
+```text
+voices/de_DE-thorsten-medium.onnx
+voices/de_DE-thorsten-medium.onnx.json
+```
+
+Das Programm lädt die Stimme beim ersten Vorlesen und behält sie anschließend im Speicher.
+
+Eine andere Stimme kann über eine Umgebungsvariable gewählt werden:
+
+```bash
+PIPER_VOICE="voices/meine-stimme.onnx" python main.py --mock
+```
+
+Die Liste verfügbarer Stimmen erhältst du mit:
+
+```bash
+python -m piper.download_voices
+```
+
+Piper bietet auch deutsche Stimmen; `de_DE-thorsten-medium` ist ein guter neutraler Start. Die Voice-Dateien bestehen aus einer `.onnx`-Datei plus passender `.onnx.json`-Datei.
+
+## Audio unter Arch Linux
+
+Zum Abspielen der von Piper erzeugten WAV-Datei verwendet das Projekt `aplay`:
+
+```bash
+sudo pacman -S alsa-utils
+```
+
+## Ollama
+
+Modell laden:
+
+```bash
+ollama pull qwen2.5:3b
+```
+
+Dann:
+
+```bash
 python main.py
 ```
 
-Mit Debug-Ausgabe der echten Ollama-Aufrufe:
+Mit Debug-Ausgabe:
 
 ```bash
 python main.py --debug
 ```
 
-Das Programm spricht Ollama lokal unter `http://localhost:11434` an.
-
-Ein anderes installiertes Modell kann so verwendet werden:
+Ein anderes Ollama-Modell:
 
 ```bash
 OLLAMA_MODEL="qwen2.5:7b" python main.py
 ```
 
-## Sprachausgabe
-
-Die Sprachausgabe verwendet `pyttsx3`. Unter Linux wird dafür normalerweise eine lokale Speech-Engine wie eSpeak/eSpeak-NG benötigt.
-
-Falls keine Sprach-Engine verfügbar ist, läuft die Geschichte trotzdem als Text weiter.
-
 ## Idee
 
-V0 ist absichtlich klein. Erst wenn sie Spaß macht, kommen Erinnerungen, Beziehungen, Gegenstände, mehr Weltregeln oder verschiedene Stimmen dazu.
+V0 ist absichtlich klein. Wenn sie Spaß macht, können später Erinnerungen, Beziehungen, Gegenstände und vor allem unterschiedliche Piper-Stimmen für Erzähler, Mia und Leo dazukommen.
