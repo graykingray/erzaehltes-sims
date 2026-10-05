@@ -91,7 +91,7 @@ def speak_part(speaker: str, text: str) -> None:
 
 def split_story_by_speaker(text: str):
     names = "|".join(re.escape(name) for name in world["characters"])
-    pattern = re.compile(rf'\\b({names}):\\s*[„"](.+?)[“"]')
+    pattern = re.compile(rf'\b({names}):\s*[„"](.+?)[“"]')
 
     position = 0
     parts = []
@@ -111,8 +111,11 @@ def split_story_by_speaker(text: str):
     return parts
 
 
-def speak(text: str) -> None:
+def speak(text: str, debug: bool = False) -> None:
     for speaker, part in split_story_by_speaker(text):
+        if debug:
+            print(f"[TTS DEBUG] {speaker} -> {VOICE_FILES.get(speaker, PIPER_NARRATOR_VOICE)}")
+            print(f"[TTS DEBUG] Text: {part}")
         speak_part(speaker, part)
 
 
@@ -293,7 +296,7 @@ def main() -> None:
         print("\n" + story)
 
         if not args.no_speech:
-            speak(story)
+            speak(story, debug=args.debug)
 
 
 if __name__ == "__main__":
