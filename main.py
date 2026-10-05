@@ -4,6 +4,8 @@ import os
 import re
 import subprocess
 import tempfile
+import threading
+import time
 import urllib.error
 import urllib.request
 import wave
@@ -210,21 +212,53 @@ def speak(text: str, debug: bool = False) -> None:
         speak_part(speaker, part)
 
 
+def _loading_indicator(stop_event: threading.Event) -> None:
+    frames = ["⠋", "⠙", "⠹", "⠸", "⠼", "⠴", "⠦", "⠧", "⠇", "⠏"]
+    started = time.monotonic()
+    index = 0
+
+    while not stop_event.wait(0.1):
+        elapsed = time.monotonic() - started
+        print(
+            f"\r{frames[index % len(frames)]} KI schreibt Szene … {elapsed:4.1f}s",
+            end="",
+            flush=True,
+        )
+        index += 1
+
+    elapsed = time.monotonic() - started
+    print(f"\r✓ KI-Szene fertig ({elapsed:.1f}s)          ")
+
+
 def _ollama_request(prompt: str) -> str:
+    # /no_think ist zusätzlich zu think=False gesetzt. Damit funktioniert
+    # Qwen3 auch mit Ollama-Versionen, die den API-Schalter nicht sauber
+    # in das Qwen-Chat-Template übernehmen.
+    user_prompt = prompt.rstrip() + "\n\n/no_think"
+
     body = json.dumps(
         {
             "model": OLLAMA_MODEL,
             "messages": [
                 {
+                    "role": "system",
+                    "content": (
+                        "Du bist Autor einer deutschen Familienkomödie. "
+                        "Antworte ausschließlich auf Deutsch. "
+                        "Gib nur die fertige Szene aus, niemals Analyse, Planung "
+                        "oder Erklärungen. /no_think"
+                    ),
+                },
+                {
                     "role": "user",
-                    "content": prompt,
-                }
+                    "content": user_prompt,
+                },
             ],
             "stream": False,
             "think": False,
             "options": {
                 "temperature": 0.5,
-                "num_predict": 160,
+                "num_predict": 220,
             },
         }
     ).encode("utf-8")
@@ -235,6 +269,14 @@ def _ollama_request(prompt: str) -> str:
         headers={"Content-Type": "application/json"},
     )
 
+    stop_event = threading.Event()
+    loader = threading.Thread(
+        target=_loading_indicator,
+        args=(stop_event,),
+        daemon=True,
+    )
+    loader.start()
+
     try:
         with urllib.request.urlopen(request) as response:
             result = json.load(response)
@@ -242,8 +284,18 @@ def _ollama_request(prompt: str) -> str:
         raise SystemExit(
             "Ollama ist nicht erreichbar. Läuft Ollama und ist das Modell installiert?"
         ) from exc
+    finally:
+        stop_event.set()
+        loader.join()
 
-    return result.get("message", {}).get("content", "").strip()
+    message = result.get("message", {})
+    content = message.get("content", "").strip()
+
+    # Manche ältere Kombinationen aus Ollama/Qwen können Thinking trotzdem
+    # als <think>-Block ausgeben. Diesen zeigen wir nicht als Spieltext.
+    content = re.sub(r"<think>.*?</think>", "", content, flags=re.DOTALL).strip()
+
+    return content
 
 
 def ask_ollama(prompt: str, debug: bool = False) -> str:
