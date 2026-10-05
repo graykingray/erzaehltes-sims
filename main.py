@@ -16,12 +16,24 @@ from piper import PiperVoice
 OLLAMA_URL = "http://localhost:11434/api/chat"
 OLLAMA_MODEL = os.getenv("OLLAMA_MODEL", "qwen3:4b-instruct")
 PIPER_VOICE = os.getenv("PIPER_VOICE", "voices/de_DE-thorsten-medium.onnx")
-PIPER_NARRATOR_VOICE = os.getenv("PIPER_NARRATOR_VOICE", PIPER_VOICE)
-PIPER_JOHANNA_VOICE = os.getenv("PIPER_JOHANNA_VOICE", PIPER_VOICE)
-PIPER_RAY_VOICE = os.getenv("PIPER_RAY_VOICE", PIPER_VOICE)
-PIPER_LOTTA_VOICE = os.getenv("PIPER_LOTTA_VOICE", PIPER_VOICE)
-PIPER_JASPER_VOICE = os.getenv("PIPER_JASPER_VOICE", PIPER_VOICE)
-PIPER_HELENA_VOICE = os.getenv("PIPER_HELENA_VOICE", PIPER_VOICE)
+PIPER_NARRATOR_VOICE = os.getenv(
+    "PIPER_NARRATOR_VOICE", "voices/de_DE-thorsten-medium.onnx"
+)
+PIPER_JOHANNA_VOICE = os.getenv(
+    "PIPER_JOHANNA_VOICE", "voices/de_DE-kerstin-low.onnx"
+)
+PIPER_RAY_VOICE = os.getenv(
+    "PIPER_RAY_VOICE", "voices/de_DE-thorsten_emotional-medium.onnx"
+)
+PIPER_LOTTA_VOICE = os.getenv(
+    "PIPER_LOTTA_VOICE", "voices/de_DE-ramona-low.onnx"
+)
+PIPER_JASPER_VOICE = os.getenv(
+    "PIPER_JASPER_VOICE", "voices/de_DE-karlsson-low.onnx"
+)
+PIPER_HELENA_VOICE = os.getenv(
+    "PIPER_HELENA_VOICE", "voices/de_DE-eva_k-x_low.onnx"
+)
 
 VOICE_FILES = {
     "Erzähler": PIPER_NARRATOR_VOICE,
@@ -65,7 +77,7 @@ world = {
             "role": "Papa",
             "place": "Lottas Zimmer",
             "state": "schläft",
-            "personality": "gibt sein Bestes aufzustehen, stellt aber keinen Wecker und vertraut darauf, dass das Dao alles richten wird",
+            "personality": "gibt sein Bestes aufzustehen, stellt aber keinen Wecker; ist morgens gelassen und vertraut darauf, dass sich die Dinge irgendwie fügen",
             "morning_facts": "landet nachts gelegentlich in Lottas Zimmer, wenn Lotta ins Elternbett im Wohnzimmer gewandert ist"
         },
         "Lotta": {
@@ -104,7 +116,7 @@ MORNING_PHASES = [
         "time": "06:30",
         "actors": ["Johanna", "Ray"],
         "task": "Jetzt sollten Johanna und Ray aufstehen und in der Küche Vesper für die Kinder machen.",
-        "facts": "Johanna kommt eher in Gang. Ray braucht einen kleinen Schubs und darf dabei daoistisch gelassen sein."
+        "facts": "Johanna kommt eher in Gang. Ray braucht einen kleinen Schubs und bleibt dabei auffallend gelassen. Das Wort Dao soll in dieser Szene nicht vorkommen."
     },
     {
         "time": "06:45",
@@ -133,11 +145,12 @@ MORNING_PHASES = [
     {
         "time": "07:30",
         "actors": ["Johanna", "Ray", "Lotta", "Jasper"],
-        "task": "Jetzt gehen alle tatsächlich los. Unmittelbar vorher fällt Jasper ein, dass er noch etwas essen möchte.",
-        "facts": "Johanna findet eine pragmatische Lösung. Der Morgen endet chaotisch, aber erfolgreich und liebevoll."
+        "task": "Jetzt gehen Johanna, Ray, Lotta und Jasper tatsächlich gemeinsam aus dem Haus. Unmittelbar vorher fällt Jasper ein, dass er noch etwas essen möchte.",
+        "facts": "Johanna findet eine pragmatische Lösung für Jaspers Hunger. Helena bleibt zurück, weil sie später losmuss. Die Szene MUSS damit enden, dass Johanna, Ray, Lotta und Jasper die Wohnung verlassen und die Haustür hinter ihnen zufällt."
     },
 ]
 phase_index = 0
+story_history = []
 
 mock_step = 0
 piper_voices = {}
@@ -427,7 +440,10 @@ def next_scene(mock: bool = False, debug: bool = False) -> str:
     global phase_index
 
     if phase_index >= len(MORNING_PHASES):
-        return "Der Morgen ist geschafft. Die Haustür fällt ins Schloss, und für einen kurzen Moment ist es tatsächlich still."
+        return (
+            "Der Morgen ist geschafft. Johanna, Ray, Lotta und Jasper sind aus dem Haus. "
+            "Helena hat noch etwas Zeit, bevor sie selbst losmuss."
+        )
 
     phase = MORNING_PHASES[phase_index]
     world["time"] = phase["time"]
@@ -437,14 +453,20 @@ def next_scene(mock: bool = False, debug: bool = False) -> str:
         for name in phase["actors"]
     )
 
-    prompt = f"""
-Schreibe eine kurze Szene aus dem Morgen der Familie Weidauer.
+    previous = story_history[-1] if story_history else "Noch keine vorherige Szene."
 
-Uhrzeit: {phase["time"]}
-Es dürfen nur diese Personen aktiv handeln oder sprechen:
+    prompt = f"""
+Schreibe die NÄCHSTE kurze Szene aus dem Morgen der Familie Weidauer.
+
+Bisherige letzte Szene:
+{previous}
+
+Neue Uhrzeit: {phase["time"]}
+
+Nur diese Personen dürfen aktiv handeln oder sprechen:
 {active_characters}
 
-Was jetzt passieren MUSS:
+Was in DIESER neuen Szene passieren MUSS:
 {phase["task"]}
 
 Zusätzliche Fakten:
@@ -452,17 +474,18 @@ Zusätzliche Fakten:
 
 Regeln:
 - Schreibe ausschließlich auf Deutsch.
-- Verwende natürliches, heutiges Deutsch.
+- Schreibe eine NEUE Szene. Wiederhole keine Dialoge, Gags oder Handlungen aus der vorherigen Szene.
 - 3 bis 5 kurze Sätze.
 - Liebevoller, trockener Familienhumor.
-- Erfinde KEINE neue Handlung außerhalb der beschriebenen Situation.
+- Erfinde keine Handlung außerhalb der beschriebenen Situation.
 - Niemand spricht über sich selbst in der dritten Person.
 - Niemand nennt sich selbst beim eigenen Namen.
 - Kinder sprechen kindgerecht, Erwachsene normal.
 - Wörtliche Rede ausschließlich im Format Name: „Satz“.
 - Maximal zwei kurze direkte Reden.
+- Das Wort „Dao“ NICHT verwenden. Rays Gelassenheit darf nur indirekt spürbar sein.
 - Keine Überschrift, keine Uhrzeit, keine Erklärung.
-- Schreibe nur die Szene.
+- Schreibe nur die fertige Szene.
 """
 
     if mock:
@@ -471,6 +494,7 @@ Regeln:
     else:
         story = ask_ollama(prompt, debug=debug)
 
+    story_history.append(story)
     phase_index += 1
 
     if debug:
