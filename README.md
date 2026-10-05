@@ -68,3 +68,33 @@ Mock-Modus ohne Ollama:
 ```bash
 python main.py --mock
 ```
+
+
+## OpenAI zum Vergleich
+
+API-Key nur in der aktuellen Shell setzen:
+
+```bash
+export OPENAI_API_KEY="sk-..."
+AI_PROVIDER=openai python main.py --debug
+```
+
+Standardmäßig verwendet der OpenAI-Modus:
+
+```text
+gpt-6-luna
+```
+
+Ein anderes Modell kann so gewählt werden:
+
+```bash
+AI_PROVIDER=openai OPENAI_MODEL="gpt-6-luna" python main.py
+```
+
+Zurück zu Ollama:
+
+```bash
+AI_PROVIDER=ollama python main.py
+```
+
+Den API-Key niemals in `main.py`, Git oder die README schreiben.
