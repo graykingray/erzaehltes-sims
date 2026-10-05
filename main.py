@@ -163,16 +163,15 @@ def speak(text: str, debug: bool = False) -> None:
         speak_part(speaker, part)
 
 
-def _ollama_request(prompt: str) -> dict:
+def _ollama_request(prompt: str) -> str:
     body = json.dumps(
         {
             "model": OLLAMA_MODEL,
             "prompt": prompt,
             "stream": False,
-            "format": "json",
             "options": {
                 "temperature": 0.7,
-                "num_predict": 220,
+                "num_predict": 180,
             },
         }
     ).encode("utf-8")
@@ -185,21 +184,13 @@ def _ollama_request(prompt: str) -> dict:
 
     try:
         with urllib.request.urlopen(request) as response:
-            return json.load(response)
+            result = json.load(response)
     except urllib.error.URLError as exc:
         raise SystemExit(
             "Ollama ist nicht erreichbar. Läuft Ollama und ist das Modell installiert?"
         ) from exc
 
-
-def _valid_scene(data: dict) -> bool:
-    return (
-        isinstance(data, dict)
-        and isinstance(data.get("story"), str)
-        and len(data["story"].strip()) > 20
-        and isinstance(data.get("time"), str)
-        and isinstance(data.get("changes", {}), dict)
-    )
+    return result.get("response", "").strip()
 
 
 def ask_ollama(prompt: str, debug: bool = False) -> dict:
@@ -209,58 +200,34 @@ def ask_ollama(prompt: str, debug: bool = False) -> dict:
         print("[DEBUG] Prompt:")
         print(prompt)
 
-    result = _ollama_request(prompt)
+    raw = _ollama_request(prompt)
 
     if debug:
         print("[DEBUG] Rohantwort:")
-        print(result.get("response", ""))
+        print(raw)
 
-    try:
-        data = json.loads(result["response"])
-    except (KeyError, json.JSONDecodeError):
-        data = {}
+    lines = raw.splitlines()
+    time_value = world["time"]
+    story_lines = lines
 
-    if _valid_scene(data):
-        return data
+    if lines and lines[0].startswith("TIME:"):
+        candidate = lines[0][5:].strip()
+        if re.fullmatch(r"\\d{2}:\\d{2}", candidate):
+            time_value = candidate
+        story_lines = lines[1:]
 
-    if debug:
-        print("[DEBUG] Antwort unbrauchbar – ein Reparaturversuch folgt.")
+    story = "\n".join(story_lines).strip()
 
-    repair_prompt = f"""
-Die vorige Antwort war unvollständig.
-
-Erzeuge JETZT eine vollständige kurze Szene.
-Mindestens 3 Sätze, maximal 120 Wörter.
-Keine Erklärung.
-
-Antworte NUR als JSON:
-{{
-  "story": "vollständige Szene mit mindestens 3 Sätzen",
-  "time": "HH:MM",
-  "changes": {{}}
-}}
-
-Kontext:
-{prompt}
-"""
-
-    result = _ollama_request(repair_prompt)
-
-    if debug:
-        print("[DEBUG] Reparatur-Rohantwort:")
-        print(result.get("response", ""))
-
-    try:
-        data = json.loads(result["response"])
-    except (KeyError, json.JSONDecodeError):
-        data = {}
-
-    if not _valid_scene(data):
+    if len(story) < 20:
         raise RuntimeError(
-            "Ollama hat auch beim zweiten Versuch keine vollständige Szene geliefert."
+            f"Ollama hat keine brauchbare Szene geliefert. Rohantwort: {raw!r}"
         )
 
-    return data
+    return {
+        "story": story,
+        "time": time_value,
+        "changes": {},
+    }
 
 
 def mock_ollama(prompt: str, debug: bool = False) -> dict:
@@ -362,42 +329,34 @@ def next_scene(mock: bool = False, debug: bool = False) -> str:
     context = compact_world_context()
 
     prompt = f"""
-Du erzählst eine kurze humoristische Szene aus einem Schulmorgen der Familie Weidauer.
+Schreibe die nächste kurze, humoristische Szene aus dem Schulmorgen der Familie Weidauer.
 
-AKTUELL:
-{json.dumps(context, ensure_ascii=False)}
+Aktuelle Zeit: {context["time"]}
 
-FIGUREN:
-Johanna: Mama, liebevoll und organisiert, morgens Einsatzleitung; macht Vesper, weckt und hilft beim Anziehen.
-Ray: Papa, bemüht sich aufzustehen, stellt keinen Wecker und vertraut gern dem Dao.
+Johanna: liebevoll, organisiert, macht Vesper, weckt und hilft beim Anziehen.
+Ray: bemüht sich aufzustehen, stellt keinen Wecker und vertraut gern dem Dao.
 Lotta: Klasse 4, sehr lustig, übertreibt Gags gegenüber Jasper manchmal.
-Jasper: Klasse 1, morgens müde, braucht Hilfe beim Anziehen, will lieber von Mama geweckt werden; kurz vor Schluss oft noch hungrig.
-Helena: Klasse 9, ordentlich, hilfsbereit, selbstständig; muss später los und bleibt gern länger im Zimmer.
+Jasper: Klasse 1, morgens müde, braucht Hilfe, will lieber von Mama geweckt werden.
+Helena: Klasse 9, ordentlich, hilfsbereit, bleibt morgens gern länger in ihrem Zimmer.
 
-ZEITPLAN:
+Ablauf:
 06:00 Wecker und Schlummern.
-06:30 Eltern aufstehen und Vesper machen.
-06:45 Lotta und Jasper erstmals wecken.
+06:30 Vesper machen.
+06:45 Lotta und Jasper wecken.
 07:00 Aufstehen, Zähne, Essen.
-07:20 angepeilte Losgehzeit, sichtbar auf der Uhr markiert.
+07:20 angepeilte Losgehzeit.
 07:30 tatsächliches Losgehen.
 
-REGELN:
-- Erzeuge genau EINE kurze Szene, maximal etwa 120 Wörter.
-- Humorvoll, warmherzig, alltagsnah, niemanden bloßstellen.
-- Zeit muss vorwärts laufen und höchstens 07:30 sein.
-- Wörtliche Rede immer: Name: „Satz“
-- Gib nur Änderungen zurück, nicht den ganzen Weltzustand.
-- Änderungen dürfen nur place und state enthalten.
+Regeln:
+- Genau eine Szene mit 3 bis 6 Sätzen.
+- Warmherzig, alltagsnah und humorvoll.
+- Die Zeit läuft vorwärts und bleibt höchstens 07:30.
+- Wörtliche Rede immer im Format Name: „Satz“.
+- Keine Erklärung, kein JSON.
 
-Antworte ausschließlich als JSON:
-{{
-  "story": "Szene",
-  "time": "HH:MM",
-  "changes": {{
-    "Name": {{"place": "...", "state": "..."}}
-  }}
-}}
+Antworte genau so:
+TIME: HH:MM
+Danach direkt die Szene.
 """
 
     if mock:
@@ -405,11 +364,9 @@ Antworte ausschließlich als JSON:
     else:
         data = ask_ollama(prompt, debug=debug)
 
-    apply_scene_update(data)
+    world["time"] = data.get("time", world["time"])
 
     if debug:
-        print("[DEBUG] Änderungen:")
-        print(json.dumps(data.get("changes", {}), ensure_ascii=False, indent=2))
         print("[DEBUG] Zeit:", world["time"])
 
     return data["story"]
