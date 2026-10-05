@@ -2,17 +2,18 @@ import argparse
 import copy
 import json
 import os
+import subprocess
+import tempfile
 import urllib.error
 import urllib.request
+import wave
 
-try:
-    import pyttsx3
-except ImportError:
-    pyttsx3 = None
+from piper import PiperVoice
 
 
 OLLAMA_URL = "http://localhost:11434/api/generate"
 OLLAMA_MODEL = os.getenv("OLLAMA_MODEL", "qwen2.5:3b")
+PIPER_VOICE = os.getenv("PIPER_VOICE", "voices/de_DE-thorsten-medium.onnx")
 
 world = {
     "time": "08:00",
@@ -36,18 +37,45 @@ world = {
 }
 
 mock_step = 0
+piper_voice = None
+
+
+def load_piper_voice():
+    global piper_voice
+
+    if piper_voice is not None:
+        return piper_voice
+
+    if not os.path.exists(PIPER_VOICE):
+        print(
+            f"[TTS] Piper-Stimme nicht gefunden: {PIPER_VOICE}\n"
+            "[TTS] Sprachausgabe ist deaktiviert."
+        )
+        return None
+
+    try:
+        piper_voice = PiperVoice.load(PIPER_VOICE)
+        return piper_voice
+    except Exception as exc:
+        print(f"[TTS] Piper konnte nicht geladen werden: {exc}")
+        return None
 
 
 def speak(text: str) -> None:
-    if pyttsx3 is None:
+    voice = load_piper_voice()
+    if voice is None:
         return
 
     try:
-        engine = pyttsx3.init()
-        engine.say(text)
-        engine.runAndWait()
-    except Exception:
-        pass
+        with tempfile.NamedTemporaryFile(suffix=".wav") as tmp:
+            with wave.open(tmp.name, "wb") as wav_file:
+                voice.synthesize_wav(text, wav_file)
+
+            subprocess.run(["aplay", "-q", tmp.name], check=False)
+    except FileNotFoundError:
+        print("[TTS] 'aplay' wurde nicht gefunden. Unter Arch: sudo pacman -S alsa-utils")
+    except Exception as exc:
+        print(f"[TTS] Sprachausgabe fehlgeschlagen: {exc}")
 
 
 def ask_ollama(prompt: str, debug: bool = False) -> dict:
@@ -207,6 +235,7 @@ def main() -> None:
 
     print("Erzähltes Sims")
     print(f"Modell: {OLLAMA_MODEL}")
+    print(f"Piper-Stimme: {PIPER_VOICE}")
 
     if args.mock:
         print("Modus: MOCK (kein Ollama nötig)")
