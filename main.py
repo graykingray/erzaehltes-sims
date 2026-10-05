@@ -90,6 +90,53 @@ world = {
     }
 }
 
+
+MORNING_PHASES = [
+    {
+        "time": "06:05",
+        "actors": ["Johanna", "Lotta", "Ray"],
+        "task": "Der Wecker klingelt zum ersten Mal. Johanna drückt auf Schlummern. Lotta liegt quer im Elternbett im Wohnzimmer. Ray schläft in Lottas Zimmer.",
+        "facts": "Johanna ist noch liebevoll verschlafen. Ray wacht nicht von selbst auf. Niemand steht schon auf."
+    },
+    {
+        "time": "06:30",
+        "actors": ["Johanna", "Ray"],
+        "task": "Jetzt sollten Johanna und Ray aufstehen und in der Küche Vesper für die Kinder machen.",
+        "facts": "Johanna kommt eher in Gang. Ray braucht einen kleinen Schubs und darf dabei daoistisch gelassen sein."
+    },
+    {
+        "time": "06:45",
+        "actors": ["Johanna", "Lotta", "Jasper"],
+        "task": "Johanna weckt Lotta und Jasper zum ersten Mal liebevoll.",
+        "facts": "Lotta reagiert gern mit einem Witz. Jasper ist sehr müde und möchte am liebsten von Mama geweckt werden."
+    },
+    {
+        "time": "07:00",
+        "actors": ["Johanna", "Lotta", "Jasper", "Ray"],
+        "task": "Jetzt müssen Lotta und Jasper wirklich aufstehen, Zähne putzen, sich anziehen und etwas essen.",
+        "facts": "Jasper braucht Hilfe beim Anziehen. Lotta macht gern Quatsch. Johanna wird langsam ungeduldig, bleibt aber liebevoll. Ray hilft, wo er kann."
+    },
+    {
+        "time": "07:10",
+        "actors": ["Helena", "Johanna"],
+        "task": "Helena taucht kurz auf. Sie ist ordentlich, schon recht selbstständig und hilft bei einer Kleinigkeit, bevor sie wieder in ihr Zimmer verschwindet.",
+        "facts": "Helena muss später los als die anderen und hat deshalb keinen Grund zur Hektik."
+    },
+    {
+        "time": "07:20",
+        "actors": ["Johanna", "Ray", "Lotta", "Jasper"],
+        "task": "Die markierte 07:20 auf der Uhr ist erreicht. Eigentlich sollten jetzt alle losgehen, aber natürlich fehlt noch irgendetwas.",
+        "facts": "Johanna verweist auf die deutlich markierte Uhrzeit. Der Humor entsteht daraus, dass diese Markierung seit langem bekannt ist und trotzdem niemand wirklich fertig ist."
+    },
+    {
+        "time": "07:30",
+        "actors": ["Johanna", "Ray", "Lotta", "Jasper"],
+        "task": "Jetzt gehen alle tatsächlich los. Unmittelbar vorher fällt Jasper ein, dass er noch etwas essen möchte.",
+        "facts": "Johanna findet eine pragmatische Lösung. Der Morgen endet chaotisch, aber erfolgreich und liebevoll."
+    },
+]
+phase_index = 0
+
 mock_step = 0
 piper_voices = {}
 
@@ -170,8 +217,8 @@ def _ollama_request(prompt: str) -> str:
             "prompt": prompt,
             "stream": False,
             "options": {
-                "temperature": 0.7,
-                "num_predict": 180,
+                "temperature": 0.5,
+                "num_predict": 160,
             },
         }
     ).encode("utf-8")
@@ -193,41 +240,25 @@ def _ollama_request(prompt: str) -> str:
     return result.get("response", "").strip()
 
 
-def ask_ollama(prompt: str, debug: bool = False) -> dict:
+def ask_ollama(prompt: str, debug: bool = False) -> str:
     if debug:
         print("\n[DEBUG] Ollama-Aufruf")
         print(f"[DEBUG] Modell: {OLLAMA_MODEL}")
         print("[DEBUG] Prompt:")
         print(prompt)
 
-    raw = _ollama_request(prompt)
+    story = _ollama_request(prompt)
 
     if debug:
         print("[DEBUG] Rohantwort:")
-        print(raw)
+        print(story)
 
-    lines = raw.splitlines()
-    time_value = world["time"]
-    story_lines = lines
-
-    if lines and lines[0].startswith("TIME:"):
-        candidate = lines[0][5:].strip()
-        if re.fullmatch(r"\\d{2}:\\d{2}", candidate):
-            time_value = candidate
-        story_lines = lines[1:]
-
-    story = "\n".join(story_lines).strip()
-
-    if len(story) < 20:
+    if len(story) < 30:
         raise RuntimeError(
-            f"Ollama hat keine brauchbare Szene geliefert. Rohantwort: {raw!r}"
+            f"Ollama hat keine brauchbare Szene geliefert. Rohantwort: {story!r}"
         )
 
-    return {
-        "story": story,
-        "time": time_value,
-        "changes": {},
-    }
+    return story
 
 
 def mock_ollama(prompt: str, debug: bool = False) -> dict:
@@ -326,50 +357,59 @@ def apply_scene_update(data: dict) -> None:
 
 
 def next_scene(mock: bool = False, debug: bool = False) -> str:
-    context = compact_world_context()
+    global phase_index
+
+    if phase_index >= len(MORNING_PHASES):
+        return "Der Morgen ist geschafft. Die Haustür fällt ins Schloss, und für einen kurzen Moment ist es tatsächlich still."
+
+    phase = MORNING_PHASES[phase_index]
+    world["time"] = phase["time"]
+
+    active_characters = "\n".join(
+        f"- {name}: {world['characters'][name]['personality']}"
+        for name in phase["actors"]
+    )
 
     prompt = f"""
-Schreibe die nächste kurze, humoristische Szene aus dem Schulmorgen der Familie Weidauer.
+Schreibe eine kurze Szene aus dem Morgen der Familie Weidauer.
 
-Aktuelle Zeit: {context["time"]}
+Uhrzeit: {phase["time"]}
+Es dürfen nur diese Personen aktiv handeln oder sprechen:
+{active_characters}
 
-Johanna: liebevoll, organisiert, macht Vesper, weckt und hilft beim Anziehen.
-Ray: bemüht sich aufzustehen, stellt keinen Wecker und vertraut gern dem Dao.
-Lotta: Klasse 4, sehr lustig, übertreibt Gags gegenüber Jasper manchmal.
-Jasper: Klasse 1, morgens müde, braucht Hilfe, will lieber von Mama geweckt werden.
-Helena: Klasse 9, ordentlich, hilfsbereit, bleibt morgens gern länger in ihrem Zimmer.
+Was jetzt passieren MUSS:
+{phase["task"]}
 
-Ablauf:
-06:00 Wecker und Schlummern.
-06:30 Vesper machen.
-06:45 Lotta und Jasper wecken.
-07:00 Aufstehen, Zähne, Essen.
-07:20 angepeilte Losgehzeit.
-07:30 tatsächliches Losgehen.
+Zusätzliche Fakten:
+{phase["facts"]}
 
 Regeln:
-- Genau eine Szene mit 3 bis 6 Sätzen.
-- Warmherzig, alltagsnah und humorvoll.
-- Die Zeit läuft vorwärts und bleibt höchstens 07:30.
-- Wörtliche Rede immer im Format Name: „Satz“.
-- Keine Erklärung, kein JSON.
-
-Antworte genau so:
-TIME: HH:MM
-Danach direkt die Szene.
+- 3 bis 5 kurze Sätze.
+- Liebevoller, trockener Familienhumor.
+- Erfinde KEINE neue Handlung außerhalb der beschriebenen Situation.
+- Niemand spricht über sich selbst in der dritten Person.
+- Niemand nennt sich selbst beim eigenen Namen.
+- Kinder sprechen kindgerecht, Erwachsene normal.
+- Wörtliche Rede ausschließlich im Format Name: „Satz“.
+- Maximal zwei kurze direkte Reden.
+- Keine Überschrift, keine Uhrzeit, keine Erklärung.
+- Schreibe nur die Szene.
 """
 
     if mock:
         data = mock_ollama(prompt, debug=debug)
+        story = data["story"]
     else:
-        data = ask_ollama(prompt, debug=debug)
+        story = ask_ollama(prompt, debug=debug)
 
-    world["time"] = data.get("time", world["time"])
+    phase_index += 1
 
     if debug:
-        print("[DEBUG] Zeit:", world["time"])
+        print(f"[DEBUG] Phase {phase_index}/{len(MORNING_PHASES)}")
+        print(f"[DEBUG] Zeit: {world['time']}")
+        print(f"[DEBUG] Aktive Figuren: {', '.join(phase['actors'])}")
 
-    return data["story"]
+    return story
 
 
 def parse_args() -> argparse.Namespace:
