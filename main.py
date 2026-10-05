@@ -13,8 +13,11 @@ import wave
 from piper import PiperVoice
 
 
+AI_PROVIDER = os.getenv("AI_PROVIDER", "ollama").lower()
 OLLAMA_URL = "http://localhost:11434/api/chat"
 OLLAMA_MODEL = os.getenv("OLLAMA_MODEL", "qwen3:4b-instruct")
+OPENAI_URL = "https://api.openai.com/v1/responses"
+OPENAI_MODEL = os.getenv("OPENAI_MODEL", "gpt-6-luna")
 PIPER_VOICE = os.getenv("PIPER_VOICE", "voices/de_DE-thorsten-medium.onnx")
 PIPER_NARRATOR_VOICE = os.getenv(
     "PIPER_NARRATOR_VOICE", "voices/de_DE-thorsten-medium.onnx"
@@ -311,6 +314,86 @@ def _ollama_request(prompt: str) -> str:
     return content
 
 
+def _openai_request(prompt: str) -> str:
+    api_key = os.getenv("OPENAI_API_KEY")
+    if not api_key:
+        raise SystemExit(
+            "OPENAI_API_KEY fehlt. Beispiel: export OPENAI_API_KEY='sk-...'"
+        )
+
+    body = json.dumps(
+        {
+            "model": OPENAI_MODEL,
+            "instructions": (
+                "Du bist Autor einer warmherzigen deutschen Familienkomödie. "
+                "Antworte ausschließlich auf Deutsch und gib nur die fertige Szene aus."
+            ),
+            "input": prompt,
+            "max_output_tokens": 220,
+        }
+    ).encode("utf-8")
+
+    request = urllib.request.Request(
+        OPENAI_URL,
+        data=body,
+        headers={
+            "Content-Type": "application/json",
+            "Authorization": f"Bearer {api_key}",
+        },
+    )
+
+    stop_event = threading.Event()
+    loader = threading.Thread(
+        target=_loading_indicator,
+        args=(stop_event,),
+        daemon=True,
+    )
+    loader.start()
+
+    try:
+        with urllib.request.urlopen(request) as response:
+            result = json.load(response)
+    except urllib.error.HTTPError as exc:
+        details = exc.read().decode("utf-8", errors="replace")
+        raise SystemExit(f"OpenAI API Fehler {exc.code}: {details}") from exc
+    except urllib.error.URLError as exc:
+        raise SystemExit("OpenAI API ist nicht erreichbar.") from exc
+    finally:
+        stop_event.set()
+        loader.join()
+
+    texts = []
+    for item in result.get("output", []):
+        if item.get("type") != "message":
+            continue
+        for content in item.get("content", []):
+            if content.get("type") == "output_text":
+                texts.append(content.get("text", ""))
+
+    return "\n".join(texts).strip()
+
+
+def ask_openai(prompt: str, debug: bool = False) -> str:
+    if debug:
+        print("\n[DEBUG] OpenAI-Aufruf")
+        print(f"[DEBUG] Modell: {OPENAI_MODEL}")
+        print("[DEBUG] Prompt:")
+        print(prompt)
+
+    story = _openai_request(prompt)
+
+    if debug:
+        print("[DEBUG] Rohantwort:")
+        print(story)
+
+    if len(story) < 30:
+        raise RuntimeError(
+            f"OpenAI hat keine brauchbare Szene geliefert. Rohantwort: {story!r}"
+        )
+
+    return story
+
+
 def ask_ollama(prompt: str, debug: bool = False) -> str:
     if debug:
         print("\n[DEBUG] Ollama-Aufruf")
@@ -491,8 +574,14 @@ Regeln:
     if mock:
         data = mock_ollama(prompt, debug=debug)
         story = data["story"]
-    else:
+    elif AI_PROVIDER == "openai":
+        story = ask_openai(prompt, debug=debug)
+    elif AI_PROVIDER == "ollama":
         story = ask_ollama(prompt, debug=debug)
+    else:
+        raise SystemExit(
+            f"Unbekannter AI_PROVIDER: {AI_PROVIDER!r}. Erlaubt: ollama, openai"
+        )
 
     story_history.append(story)
     phase_index += 1
@@ -529,7 +618,11 @@ def main() -> None:
     args = parse_args()
 
     print("Erzähltes Sims")
-    print(f"Modell: {OLLAMA_MODEL}")
+    print(f"KI-Provider: {AI_PROVIDER}")
+    if AI_PROVIDER == "openai":
+        print(f"Modell: {OPENAI_MODEL}")
+    else:
+        print(f"Modell: {OLLAMA_MODEL}")
     print("Piper-Stimmen:")
     for speaker, voice_file in VOICE_FILES.items():
         print(f"  {speaker}: {voice_file}")
@@ -537,7 +630,7 @@ def main() -> None:
     if args.mock:
         print("Modus: MOCK (kein Ollama nötig)")
     elif args.debug:
-        print("Modus: Ollama + Debug")
+        print(f"Modus: {AI_PROVIDER} + Debug")
 
     print("Enter = nächste Szene | q = Ende")
 
