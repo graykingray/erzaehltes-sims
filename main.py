@@ -2,6 +2,7 @@ import argparse
 import copy
 import json
 import os
+import re
 import subprocess
 import tempfile
 import urllib.error
@@ -14,6 +15,15 @@ from piper import PiperVoice
 OLLAMA_URL = "http://localhost:11434/api/generate"
 OLLAMA_MODEL = os.getenv("OLLAMA_MODEL", "qwen2.5:3b")
 PIPER_VOICE = os.getenv("PIPER_VOICE", "voices/de_DE-thorsten-medium.onnx")
+PIPER_NARRATOR_VOICE = os.getenv("PIPER_NARRATOR_VOICE", PIPER_VOICE)
+PIPER_MIA_VOICE = os.getenv("PIPER_MIA_VOICE", PIPER_VOICE)
+PIPER_LEO_VOICE = os.getenv("PIPER_LEO_VOICE", PIPER_VOICE)
+
+VOICE_FILES = {
+    "Erzähler": PIPER_NARRATOR_VOICE,
+    "Mia": PIPER_MIA_VOICE,
+    "Leo": PIPER_LEO_VOICE,
+}
 
 world = {
     "time": "08:00",
@@ -37,32 +47,33 @@ world = {
 }
 
 mock_step = 0
-piper_voice = None
+piper_voices = {}
 
 
-def load_piper_voice():
-    global piper_voice
+def load_piper_voice(voice_file: str):
+    if voice_file in piper_voices:
+        return piper_voices[voice_file]
 
-    if piper_voice is not None:
-        return piper_voice
-
-    if not os.path.exists(PIPER_VOICE):
-        print(
-            f"[TTS] Piper-Stimme nicht gefunden: {PIPER_VOICE}\n"
-            "[TTS] Sprachausgabe ist deaktiviert."
-        )
+    if not os.path.exists(voice_file):
+        print(f"[TTS] Piper-Stimme nicht gefunden: {voice_file}")
         return None
 
     try:
-        piper_voice = PiperVoice.load(PIPER_VOICE)
-        return piper_voice
+        voice = PiperVoice.load(voice_file)
+        piper_voices[voice_file] = voice
+        return voice
     except Exception as exc:
-        print(f"[TTS] Piper konnte nicht geladen werden: {exc}")
+        print(f"[TTS] Piper konnte {voice_file} nicht laden: {exc}")
         return None
 
 
-def speak(text: str) -> None:
-    voice = load_piper_voice()
+def speak_part(speaker: str, text: str) -> None:
+    text = text.strip()
+    if not text:
+        return
+
+    voice_file = VOICE_FILES.get(speaker, PIPER_NARRATOR_VOICE)
+    voice = load_piper_voice(voice_file)
     if voice is None:
         return
 
@@ -76,6 +87,33 @@ def speak(text: str) -> None:
         print("[TTS] 'aplay' wurde nicht gefunden. Unter Arch: sudo pacman -S alsa-utils")
     except Exception as exc:
         print(f"[TTS] Sprachausgabe fehlgeschlagen: {exc}")
+
+
+def split_story_by_speaker(text: str):
+    names = "|".join(re.escape(name) for name in world["characters"])
+    pattern = re.compile(rf'\\b({names}):\\s*[„"](.+?)[“"]')
+
+    position = 0
+    parts = []
+
+    for match in pattern.finditer(text):
+        narrator = text[position:match.start()].strip()
+        if narrator:
+            parts.append(("Erzähler", narrator))
+
+        parts.append((match.group(1), match.group(2).strip()))
+        position = match.end()
+
+    narrator = text[position:].strip()
+    if narrator:
+        parts.append(("Erzähler", narrator))
+
+    return parts
+
+
+def speak(text: str) -> None:
+    for speaker, part in split_story_by_speaker(text):
+        speak_part(speaker, part)
 
 
 def ask_ollama(prompt: str, debug: bool = False) -> dict:
@@ -235,7 +273,9 @@ def main() -> None:
 
     print("Erzähltes Sims")
     print(f"Modell: {OLLAMA_MODEL}")
-    print(f"Piper-Stimme: {PIPER_VOICE}")
+    print("Piper-Stimmen:")
+    for speaker, voice_file in VOICE_FILES.items():
+        print(f"  {speaker}: {voice_file}")
 
     if args.mock:
         print("Modus: MOCK (kein Ollama nötig)")
