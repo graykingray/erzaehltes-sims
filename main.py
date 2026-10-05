@@ -11,7 +11,7 @@ import wave
 from piper import PiperVoice
 
 
-OLLAMA_URL = "http://localhost:11434/api/generate"
+OLLAMA_URL = "http://localhost:11434/api/chat"
 OLLAMA_MODEL = os.getenv("OLLAMA_MODEL", "qwen2.5:3b")
 PIPER_VOICE = os.getenv("PIPER_VOICE", "voices/de_DE-thorsten-medium.onnx")
 PIPER_NARRATOR_VOICE = os.getenv("PIPER_NARRATOR_VOICE", PIPER_VOICE)
@@ -214,8 +214,14 @@ def _ollama_request(prompt: str) -> str:
     body = json.dumps(
         {
             "model": OLLAMA_MODEL,
-            "prompt": prompt,
+            "messages": [
+                {
+                    "role": "user",
+                    "content": prompt,
+                }
+            ],
             "stream": False,
+            "think": False,
             "options": {
                 "temperature": 0.5,
                 "num_predict": 160,
@@ -237,7 +243,7 @@ def _ollama_request(prompt: str) -> str:
             "Ollama ist nicht erreichbar. Läuft Ollama und ist das Modell installiert?"
         ) from exc
 
-    return result.get("response", "").strip()
+    return result.get("message", {}).get("content", "").strip()
 
 
 def ask_ollama(prompt: str, debug: bool = False) -> str:
