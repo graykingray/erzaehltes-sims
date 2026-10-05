@@ -12,10 +12,17 @@ Es wird kein OpenAI-API-Key benötigt. Ollama und Piper laufen lokal.
 - kurze Szenen mit wörtlicher Rede
 - Enter = nächste Szene
 - lokale Sprachausgabe mit Piper
+- **eigene Stimme für Erzähler, Mia und Leo**
 - Weltzustand bleibt in Python
 - Mock- und Debug-Modus zum Testen ohne Ollama
 
 ## Sofort testen – ohne Ollama
+
+```bash
+python main.py --mock
+```
+
+Mit Debug-Ausgabe:
 
 ```bash
 python main.py --mock --debug
@@ -37,7 +44,7 @@ pip install -r requirements.txt
 
 ## Piper-Stimme herunterladen
 
-Piper braucht ein Sprachmodell. Für Deutsch verwenden wir zunächst `de_DE-thorsten-medium`.
+Für den ersten Test reicht eine einzige deutsche Stimme:
 
 ```bash
 mkdir -p voices
@@ -51,25 +58,41 @@ voices/de_DE-thorsten-medium.onnx
 voices/de_DE-thorsten-medium.onnx.json
 ```
 
-Das Programm lädt die Stimme beim ersten Vorlesen und behält sie anschließend im Speicher.
+Standardmäßig verwenden Erzähler, Mia und Leo zunächst alle diese Stimme.
 
-Eine andere Stimme kann über eine Umgebungsvariable gewählt werden:
+## Unterschiedliche Stimmen für die Figuren
+
+Die Stimmen können getrennt über Umgebungsvariablen gesetzt werden:
 
 ```bash
-PIPER_VOICE="voices/meine-stimme.onnx" python main.py --mock
+PIPER_NARRATOR_VOICE="voices/erzaehler.onnx" \
+PIPER_MIA_VOICE="voices/mia.onnx" \
+PIPER_LEO_VOICE="voices/leo.onnx" \
+python main.py --mock
 ```
 
-Die Liste verfügbarer Stimmen erhältst du mit:
+Die Dateinamen sind nur Beispiele. Verwende dort tatsächlich heruntergeladene Piper-`.onnx`-Modelle.
+
+Verfügbare Piper-Stimmen anzeigen:
 
 ```bash
 python -m piper.download_voices
 ```
 
-Piper bietet auch deutsche Stimmen; `de_DE-thorsten-medium` ist ein guter neutraler Start. Die Voice-Dateien bestehen aus einer `.onnx`-Datei plus passender `.onnx.json`-Datei.
+Das Programm erkennt wörtliche Rede im Format
+
+```text
+Mia: „Hallo!“
+Leo: „Kommst du mit?“
+```
+
+und spricht sie mit der jeweiligen Figurenstimme. Alles andere übernimmt die Erzählerstimme.
+
+Geladene Stimmen bleiben während des Programmlaufs im Speicher, damit sie nicht bei jedem Satz neu geladen werden.
 
 ## Audio unter Arch Linux
 
-Zum Abspielen der von Piper erzeugten WAV-Datei verwendet das Projekt `aplay`:
+Zum Abspielen der von Piper erzeugten WAV-Dateien verwendet das Projekt `aplay`:
 
 ```bash
 sudo pacman -S alsa-utils
@@ -103,4 +126,4 @@ OLLAMA_MODEL="qwen2.5:7b" python main.py
 
 ## Idee
 
-V0 ist absichtlich klein. Wenn sie Spaß macht, können später Erinnerungen, Beziehungen, Gegenstände und vor allem unterschiedliche Piper-Stimmen für Erzähler, Mia und Leo dazukommen.
+V0 ist absichtlich klein. Wenn sie Spaß macht, können später Erinnerungen, Beziehungen, Gegenstände und weitere Figuren dazukommen.
