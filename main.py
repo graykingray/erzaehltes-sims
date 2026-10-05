@@ -329,7 +329,10 @@ def _openai_request(prompt: str) -> str:
                 "Antworte ausschließlich auf Deutsch und gib nur die fertige Szene aus."
             ),
             "input": prompt,
-            "max_output_tokens": 800,
+            "reasoning": {
+                "effort": "none",
+            },
+            "max_output_tokens": 300,
         }
     ).encode("utf-8")
 
