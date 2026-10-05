@@ -163,19 +163,17 @@ def speak(text: str, debug: bool = False) -> None:
         speak_part(speaker, part)
 
 
-def ask_ollama(prompt: str, debug: bool = False) -> dict:
-    if debug:
-        print("\n[DEBUG] Ollama-Aufruf")
-        print(f"[DEBUG] Modell: {OLLAMA_MODEL}")
-        print("[DEBUG] Prompt:")
-        print(prompt)
-
+def _ollama_request(prompt: str) -> dict:
     body = json.dumps(
         {
             "model": OLLAMA_MODEL,
             "prompt": prompt,
             "stream": False,
             "format": "json",
+            "options": {
+                "temperature": 0.7,
+                "num_predict": 220,
+            },
         }
     ).encode("utf-8")
 
@@ -187,16 +185,82 @@ def ask_ollama(prompt: str, debug: bool = False) -> dict:
 
     try:
         with urllib.request.urlopen(request) as response:
-            result = json.load(response)
+            return json.load(response)
     except urllib.error.URLError as exc:
         raise SystemExit(
             "Ollama ist nicht erreichbar. Läuft Ollama und ist das Modell installiert?"
         ) from exc
 
-    if debug:
-        print("[DEBUG] Ollama-Antwort erhalten")
 
-    return json.loads(result["response"])
+def _valid_scene(data: dict) -> bool:
+    return (
+        isinstance(data, dict)
+        and isinstance(data.get("story"), str)
+        and len(data["story"].strip()) > 20
+        and isinstance(data.get("time"), str)
+        and isinstance(data.get("changes", {}), dict)
+    )
+
+
+def ask_ollama(prompt: str, debug: bool = False) -> dict:
+    if debug:
+        print("\n[DEBUG] Ollama-Aufruf")
+        print(f"[DEBUG] Modell: {OLLAMA_MODEL}")
+        print("[DEBUG] Prompt:")
+        print(prompt)
+
+    result = _ollama_request(prompt)
+
+    if debug:
+        print("[DEBUG] Rohantwort:")
+        print(result.get("response", ""))
+
+    try:
+        data = json.loads(result["response"])
+    except (KeyError, json.JSONDecodeError):
+        data = {}
+
+    if _valid_scene(data):
+        return data
+
+    if debug:
+        print("[DEBUG] Antwort unbrauchbar – ein Reparaturversuch folgt.")
+
+    repair_prompt = f"""
+Die vorige Antwort war unvollständig.
+
+Erzeuge JETZT eine vollständige kurze Szene.
+Mindestens 3 Sätze, maximal 120 Wörter.
+Keine Erklärung.
+
+Antworte NUR als JSON:
+{{
+  "story": "vollständige Szene mit mindestens 3 Sätzen",
+  "time": "HH:MM",
+  "changes": {{}}
+}}
+
+Kontext:
+{prompt}
+"""
+
+    result = _ollama_request(repair_prompt)
+
+    if debug:
+        print("[DEBUG] Reparatur-Rohantwort:")
+        print(result.get("response", ""))
+
+    try:
+        data = json.loads(result["response"])
+    except (KeyError, json.JSONDecodeError):
+        data = {}
+
+    if not _valid_scene(data):
+        raise RuntimeError(
+            "Ollama hat auch beim zweiten Versuch keine vollständige Szene geliefert."
+        )
+
+    return data
 
 
 def mock_ollama(prompt: str, debug: bool = False) -> dict:
