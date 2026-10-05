@@ -1,26 +1,35 @@
-# Erzähltes Sims
+# Erzähltes Sims – Familie Weidauer
 
-Ein kleines Python-Experiment: Figuren leben in einer einfachen Welt, treffen mit Hilfe einer **lokalen KI über Ollama** Entscheidungen, und die Simulation wird als fortlaufende Geschichte erzählt und mit **Piper TTS** vorgelesen.
+Ein kleines Familienexperiment mit Python, Ollama und Piper: Eine lokale KI erzählt einen ganz normalen Schulmorgen der Familie Weidauer als fortlaufende, leicht überdrehte Familien-Sitcom.
 
-Es wird kein OpenAI-API-Key benötigt. Ollama und Piper laufen lokal.
+Die Figuren handeln auf Basis ihrer Eigenschaften, der Morgen schreitet von 06:00 bis ungefähr 07:30 Uhr voran und wörtliche Rede wird mit unterschiedlichen Piper-Stimmen vorgelesen.
 
-## V0
+## Die Figuren
 
-- zwei Figuren
-- drei Orte
-- Hunger, Energie und Stimmung
-- kurze Szenen mit wörtlicher Rede
-- Enter = nächste Szene
-- lokale Sprachausgabe mit Piper
-- **eigene Stimme für Erzähler, Mia und Leo**
-- Weltzustand bleibt in Python
-- Mock- und Debug-Modus zum Testen ohne Ollama
+- **Johanna** – hält morgens den Laden zusammen, macht Vesper, weckt liebevoll und wird verständlicherweise nervös, wenn niemand aufstehen will.
+- **Ray** – gibt sein Bestes aufzustehen, stellt keinen Wecker und vertraut dem Dao sowie gelegentlich Johanna.
+- **Lotta** – Klasse 4, sehr lustig, manchmal mit etwas zu langem Atem bei Gags gegenüber Jasper.
+- **Jasper** – Klasse 1, noch nicht ganz mit dem frühen Rhythmus versöhnt, braucht morgens Hilfe und entdeckt gern kurz vor dem Losgehen noch Hunger.
+- **Helena** – Klasse 9, ordentlich, hilfsbereit und selbstständig; weil sie später losmuss, bleibt sie morgens gern noch etwas länger in ihrem Zimmer.
 
-## Sofort testen – ohne Ollama
+## Der Morgen
+
+Die KI orientiert sich an diesen festen Punkten:
+
+- 06:00 – Wecker klingelt, Schlummern
+- 06:30 – Eltern aufstehen, Vesper machen
+- 06:45 – Lotta und Jasper erstmals wecken
+- 07:00 – spätestens aufstehen, Zähne putzen, essen
+- 07:20 – angepeilte Losgehzeit, sichtbar auf der Uhr markiert
+- 07:30 – tatsächliches Losgehen
+
+## Ohne Ollama testen
 
 ```bash
 python main.py --mock
 ```
+
+Der Mock-Modus erzählt bereits einen beispielhaften Weidauer-Morgen.
 
 Mit Debug-Ausgabe:
 
@@ -28,102 +37,41 @@ Mit Debug-Ausgabe:
 python main.py --mock --debug
 ```
 
-Ohne Sprachausgabe:
-
-```bash
-python main.py --mock --debug --no-speech
-```
-
-## Python-Umgebung
-
-```bash
-python -m venv .venv
-source .venv/bin/activate
-pip install -r requirements.txt
-```
-
-## Piper-Stimme herunterladen
-
-Für den ersten Test reicht eine einzige deutsche Stimme:
-
-```bash
-mkdir -p voices
-python -m piper.download_voices --data-dir voices de_DE-thorsten-medium
-```
-
-Danach sollten dort mindestens diese Dateien liegen:
-
-```text
-voices/de_DE-thorsten-medium.onnx
-voices/de_DE-thorsten-medium.onnx.json
-```
-
-Standardmäßig verwenden Erzähler, Mia und Leo zunächst alle diese Stimme.
-
-## Unterschiedliche Stimmen für die Figuren
-
-Die Stimmen können getrennt über Umgebungsvariablen gesetzt werden:
-
-```bash
-PIPER_NARRATOR_VOICE="voices/erzaehler.onnx" \
-PIPER_MIA_VOICE="voices/mia.onnx" \
-PIPER_LEO_VOICE="voices/leo.onnx" \
-python main.py --mock
-```
-
-Die Dateinamen sind nur Beispiele. Verwende dort tatsächlich heruntergeladene Piper-`.onnx`-Modelle.
-
-Verfügbare Piper-Stimmen anzeigen:
-
-```bash
-python -m piper.download_voices
-```
-
-Das Programm erkennt wörtliche Rede im Format
-
-```text
-Mia: „Hallo!“
-Leo: „Kommst du mit?“
-```
-
-und spricht sie mit der jeweiligen Figurenstimme. Alles andere übernimmt die Erzählerstimme.
-
-Geladene Stimmen bleiben während des Programmlaufs im Speicher, damit sie nicht bei jedem Satz neu geladen werden.
-
-## Audio unter Arch Linux
-
-Zum Abspielen der von Piper erzeugten WAV-Dateien verwendet das Projekt `aplay`:
-
-```bash
-sudo pacman -S alsa-utils
-```
-
-## Ollama
-
-Modell laden:
+## Mit Ollama
 
 ```bash
 ollama pull qwen2.5:3b
-```
-
-Dann:
-
-```bash
 python main.py
 ```
 
-Mit Debug-Ausgabe:
+Die KI bekommt bei jeder Szene den aktuellen Familienzustand und die Morgenregeln und schreibt die Geschichte ein Stück weiter.
 
-```bash
-python main.py --debug
+## Piper-Stimmen
+
+Die Sprachausgabe erkennt Dialoge wie:
+
+```text
+Johanna: „Aufstehen.“
+Jasper: „Mama soll mich wecken.“
+Ray: „Das Dao hat keinen Wecker.“
 ```
 
-Ein anderes Ollama-Modell:
+und ordnet jedem Namen eine Stimme zu.
+
+Konfigurierbare Variablen:
 
 ```bash
-OLLAMA_MODEL="qwen2.5:7b" python main.py
+PIPER_NARRATOR_VOICE="voices/de_DE-thorsten-medium.onnx" \
+PIPER_JOHANNA_VOICE="voices/johanna.onnx" \
+PIPER_RAY_VOICE="voices/ray.onnx" \
+PIPER_LOTTA_VOICE="voices/lotta.onnx" \
+PIPER_JASPER_VOICE="voices/jasper.onnx" \
+PIPER_HELENA_VOICE="voices/helena.onnx" \
+python main.py
 ```
 
-## Idee
+Wenn keine eigenen Modelle angegeben sind, verwenden zunächst alle die Standardstimme.
 
-V0 ist absichtlich klein. Wenn sie Spaß macht, können später Erinnerungen, Beziehungen, Gegenstände und weitere Figuren dazukommen.
+## Ziel
+
+Nicht perfekte Simulation, sondern möglichst schnell etwas, bei dem die Familie beim Zuhören sagt: **„Ja. Genau so ist es morgens bei uns.“**
