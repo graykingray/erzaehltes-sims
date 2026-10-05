@@ -329,7 +329,7 @@ def _openai_request(prompt: str) -> str:
                 "Antworte ausschließlich auf Deutsch und gib nur die fertige Szene aus."
             ),
             "input": prompt,
-            "max_output_tokens": 220,
+            "max_output_tokens": 800,
         }
     ).encode("utf-8")
 
@@ -363,6 +363,12 @@ def _openai_request(prompt: str) -> str:
         loader.join()
 
     texts = []
+
+    # Manche Responses enthalten den aggregierten Text direkt.
+    if isinstance(result.get("output_text"), str):
+        texts.append(result["output_text"])
+
+    # Fallback: normale Output-Items durchsuchen.
     for item in result.get("output", []):
         if item.get("type") != "message":
             continue
@@ -370,7 +376,19 @@ def _openai_request(prompt: str) -> str:
             if content.get("type") == "output_text":
                 texts.append(content.get("text", ""))
 
-    return "\n".join(texts).strip()
+    story = "\n".join(text for text in texts if text).strip()
+
+    if not story:
+        status = result.get("status")
+        incomplete = result.get("incomplete_details")
+        output_types = [item.get("type") for item in result.get("output", [])]
+        raise RuntimeError(
+            "OpenAI lieferte keinen Text. "
+            f"status={status!r}, incomplete_details={incomplete!r}, "
+            f"output_types={output_types!r}"
+        )
+
+    return story
 
 
 def ask_openai(prompt: str, debug: bool = False) -> str:
