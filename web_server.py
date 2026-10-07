@@ -22,10 +22,28 @@ app.mount("/audio", StaticFiles(directory=AUDIO_DIR), name="audio")
 app.mount("/static", StaticFiles(directory=ROOT / "web"), name="web-static")
 
 PHASE_VISUALS = [
- {"background":"elternbett","characters":[{"name":"Johanna","pose":"lying","position":"bed-left"},{"name":"Lotta","pose":"lying","position":"bed-right"}],"note":"Ray schläft in Lottas Zimmer"},
- {"background":"kueche_gesamt","characters":[{"name":"Johanna","pose":"standing","position":"left"},{"name":"Ray","pose":"standing","position":"right"}]},
- {"background":"jasper_zimmer","characters":[{"name":"Johanna","pose":"standing","position":"left"},{"name":"Jasper","pose":"lying","position":"bed-right"}],"note":"Lotta wird ebenfalls geweckt"},
+ {"background":"elternbett","base":[("Johanna","lying","bed-left"),("Lotta","lying","bed-right")],"note":"Ray schläft in Lottas Zimmer"},
+ {"background":"kueche_gesamt","base":[("Johanna","standing","left"),("Ray","standing","right")]},
+ {"background":"jasper_zimmer","base":[("Johanna","standing","left"),("Jasper","lying","bed-right")],"note":"Lotta wird ebenfalls geweckt"},
+ {"background":"bad","base":[("Jasper","standing","left"),("Lotta","standing","right")]},
+ {"background":"kueche_wandregal","base":[("Helena","standing","left"),("Johanna","standing","right")]},
+ {"background":"kueche_gesamt","base":[("Johanna","standing","far-left"),("Ray","standing","left"),("Lotta","standing","right"),("Jasper","standing","far-right")]},
+ {"background":"kueche_gesamt","base":[("Johanna","standing","far-left"),("Ray","standing","left"),("Lotta","standing","right"),("Jasper","standing","far-right")]},
 ]
+
+POSITIONS = ["far-left", "left", "right", "far-right"]
+
+def scene_characters(index, speech):
+    visual = PHASE_VISUALS[index]
+    chars = [{"name": n, "pose": p, "position": pos} for n,p,pos in visual["base"]]
+    visible = {c["name"] for c in chars}
+    speakers = [p["speaker"] for p in speech if p["speaker"] != "Erzähler"]
+    for speaker in speakers:
+        if speaker not in visible:
+            chars.append({"name":speaker,"pose":"standing","position":POSITIONS[len(chars) % len(POSITIONS)]})
+            visible.add(speaker)
+    return chars
+
 
 def connect_db(): return sqlite3.connect(DB_PATH)
 def init_db():
@@ -67,17 +85,26 @@ def create_audio(story):
 
 init_db(); scene_cache=load_cache()
 for scene in scene_cache:
-    if scene.get("speech_format") != 2:
-        scene["speech"]=create_audio(scene["story"]); scene["speech_format"]=2; save_scene(scene)
+    if scene.get("speech_format") != 3:
+        scene["speech"]=create_audio(scene["story"])
+        scene["speech_format"]=3
+        if scene["index"] < len(PHASE_VISUALS):
+            visual=PHASE_VISUALS[scene["index"]]
+            scene["background"]=visual["background"]
+            scene["characters"]=scene_characters(scene["index"],scene["speech"])
+            scene["note"]=visual.get("note")
+        save_scene(scene)
 if scene_cache:
     game.phase_index=len(scene_cache)
     game.story_history[:]=[s["story"] for s in scene_cache]
 
 def generate_scene(index):
     story=game.next_scene(mock=os.getenv("SIMS_MOCK")=="1")
-    visual=PHASE_VISUALS[min(index,len(PHASE_VISUALS)-1)]
-    return {"index":index,"number":index+1,"time":game.world["time"],"story":story,**visual,
-            "speech":create_audio(story),"speech_format":2}
+    visual=PHASE_VISUALS[index]
+    speech=create_audio(story)
+    return {"index":index,"number":index+1,"time":game.world["time"],"story":story,
+            "background":visual["background"],"characters":scene_characters(index,speech),
+            "note":visual.get("note"),"speech":speech,"speech_format":3}
 
 @app.get("/api/scenes/{number}")
 def get_scene(number:int):
