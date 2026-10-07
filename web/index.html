@@ -1,29 +1,9 @@
 <!doctype html>
-<html lang="de">
-<head>
-  <meta charset="utf-8">
-  <meta name="viewport" content="width=device-width,initial-scale=1">
-  <title>Erzähltes Sims</title>
-  <link rel="stylesheet" href="style.css">
-</head>
-<body>
-  <main class="game">
-    <section class="stage">
-      <img id="background" class="background" alt="">
-      <div id="clock" class="clock">06:00</div>
-      <div id="characters"></div>
-      <aside id="note" class="offstage" hidden></aside>
-    </section>
-
-    <section id="caption" class="caption">Bereit für den Morgen?</section>
-
-    <nav class="controls">
-      <button id="previous">◀ Zurück</button>
-      <button id="replay">🔊 Nochmal anhören</button>
-      <button id="regenerate">↻ Neu erzählen</button>
-      <button id="next">Nächste Szene ▶</button>
-    </nav>
-  </main>
-  <script src="app.js"></script>
-</body>
-</html>
+<html lang="de"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Erzähltes Sims</title><link rel="stylesheet" href="/static/style.css"></head>
+<body><main class="game">
+<section class="stage"><img id="background" class="background" alt=""><div id="clock" class="clock">06:00</div><div id="characters"></div><aside id="note" class="offstage" hidden></aside></section>
+<section class="scene-info"><strong id="scene-number">Szene 1</strong><span id="scene-time"></span></section>
+<section id="caption" class="caption">Szene wird geladen …</section>
+<nav class="controls"><button id="previous">◀ Zurück</button><button id="replay">🔊 Nochmal anhören</button><button id="regenerate">↻ Neu erzählen</button><button id="next">Weiter ▶</button></nav>
+</main><script src="/static/app.js"></script></body></html>
