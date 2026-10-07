@@ -8,14 +8,21 @@
 </head>
 <body>
   <main class="game">
-    <section id="stage" class="stage">
+    <section class="stage">
       <img id="background" class="background" alt="">
       <div id="clock" class="clock">06:00</div>
       <div id="characters"></div>
       <aside id="note" class="offstage" hidden></aside>
-      <div id="caption" class="caption">Bereit für den Morgen?</div>
     </section>
-    <button id="next">Nächste Szene ▶</button>
+
+    <section id="caption" class="caption">Bereit für den Morgen?</section>
+
+    <nav class="controls">
+      <button id="previous">◀ Zurück</button>
+      <button id="replay">🔊 Nochmal anhören</button>
+      <button id="regenerate">↻ Neu erzählen</button>
+      <button id="next">Nächste Szene ▶</button>
+    </nav>
   </main>
   <script src="app.js"></script>
 </body>
