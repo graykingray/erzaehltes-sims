@@ -19,6 +19,7 @@ OLLAMA_MODEL = os.getenv("OLLAMA_MODEL", "qwen3:4b-instruct")
 OPENAI_URL = "https://api.openai.com/v1/responses"
 OPENAI_MODEL = os.getenv("OPENAI_MODEL", "gpt-6-luna")
 PIPER_VOICE = os.getenv("PIPER_VOICE", "voices/de_DE-thorsten-medium.onnx")
+PIPER_LENGTH_SCALE = float(os.getenv("PIPER_LENGTH_SCALE", "0.88"))
 PIPER_NARRATOR_VOICE = os.getenv(
     "PIPER_NARRATOR_VOICE", "voices/de_DE-thorsten-medium.onnx"
 )
@@ -196,7 +197,7 @@ def speak_part(speaker: str, text: str) -> None:
     try:
         with tempfile.NamedTemporaryFile(suffix=".wav") as tmp:
             with wave.open(tmp.name, "wb") as wav_file:
-                voice.synthesize_wav(text, wav_file)
+                voice.synthesize_wav(text, wav_file, length_scale=PIPER_LENGTH_SCALE)
 
             subprocess.run(["aplay", "-q", tmp.name], check=False)
     except FileNotFoundError:
