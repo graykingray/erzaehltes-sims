@@ -10,7 +10,7 @@ import urllib.error
 import urllib.request
 import wave
 
-from piper import PiperVoice
+from piper import PiperVoice, SynthesisConfig
 
 
 AI_PROVIDER = os.getenv("AI_PROVIDER", "ollama").lower()
@@ -197,7 +197,7 @@ def speak_part(speaker: str, text: str) -> None:
     try:
         with tempfile.NamedTemporaryFile(suffix=".wav") as tmp:
             with wave.open(tmp.name, "wb") as wav_file:
-                voice.synthesize_wav(text, wav_file, length_scale=PIPER_LENGTH_SCALE)
+                voice.synthesize_wav(text, wav_file, syn_config=SynthesisConfig(length_scale=PIPER_LENGTH_SCALE))
 
             subprocess.run(["aplay", "-q", tmp.name], check=False)
     except FileNotFoundError:
