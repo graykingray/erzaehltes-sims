@@ -1,5 +1,6 @@
+import json
 import os
-import tempfile
+import sqlite3
 import uuid
 import wave
 from pathlib import Path
@@ -11,7 +12,10 @@ import main as game
 
 
 ROOT = Path(__file__).parent
-AUDIO_DIR = Path(tempfile.gettempdir()) / "erzaehltes-sims-audio"
+DATA_DIR = ROOT / "data"
+AUDIO_DIR = DATA_DIR / "audio"
+DB_PATH = DATA_DIR / "scenes.sqlite3"
+DATA_DIR.mkdir(exist_ok=True)
 AUDIO_DIR.mkdir(exist_ok=True)
 
 app = FastAPI(title="Erzähltes Sims")
@@ -24,8 +28,49 @@ PHASE_VISUALS = [
     {"background":"jasper_zimmer","characters":[{"name":"Johanna","pose":"standing","position":"left"},{"name":"Jasper","pose":"lying","position":"bed-right"}],"note":"Lotta wird ebenfalls geweckt"},
 ]
 
-scene_cache = []
+
+def connect_db():
+    return sqlite3.connect(DB_PATH)
+
+
+def init_db():
+    with connect_db() as db:
+        db.execute("""
+            CREATE TABLE IF NOT EXISTS scenes (
+                phase_index INTEGER PRIMARY KEY,
+                scene_json TEXT NOT NULL
+            )
+        """)
+
+
+def load_cache():
+    with connect_db() as db:
+        rows = db.execute(
+            "SELECT phase_index, scene_json FROM scenes ORDER BY phase_index"
+        ).fetchall()
+    return [json.loads(scene_json) for _, scene_json in rows]
+
+
+def save_scene(scene):
+    with connect_db() as db:
+        db.execute(
+            """
+            INSERT INTO scenes (phase_index, scene_json)
+            VALUES (?, ?)
+            ON CONFLICT(phase_index) DO UPDATE SET scene_json = excluded.scene_json
+            """,
+            (scene["index"], json.dumps(scene, ensure_ascii=False)),
+        )
+
+
+init_db()
+scene_cache = load_cache()
 current_scene = -1
+
+# Restore enough game state so generating after a restart continues after the cache.
+if scene_cache:
+    game.phase_index = len(scene_cache)
+    game.story_history[:] = [scene["story"] for scene in scene_cache]
 
 
 def create_audio(story: str):
@@ -68,6 +113,7 @@ def next_scene():
 
     scene = generate_scene(game.phase_index)
     scene_cache.append(scene)
+    save_scene(scene)
     current_scene = len(scene_cache) - 1
     return scene
 
@@ -93,9 +139,6 @@ def regenerate_scene():
     global current_scene
     if current_scene < 0:
         raise HTTPException(409, "Noch keine Szene vorhanden.")
-
-    # Regeneration is only safe for the latest generated phase because next_scene()
-    # advances the game state. Rewind the story/phase once, then generate it again.
     if current_scene != len(scene_cache) - 1:
         raise HTTPException(409, "Nur die zuletzt erzeugte Szene kann neu erzählt werden.")
 
@@ -106,6 +149,7 @@ def regenerate_scene():
 
     scene = generate_scene(phase)
     scene_cache[current_scene] = scene
+    save_scene(scene)
     return scene
 
 
