@@ -4,7 +4,7 @@ import uuid
 import wave
 from pathlib import Path
 
-from fastapi import FastAPI
+from fastapi import FastAPI, HTTPException
 from fastapi.staticfiles import StaticFiles
 
 import main as game
@@ -17,31 +17,15 @@ AUDIO_DIR.mkdir(exist_ok=True)
 app = FastAPI(title="Erzähltes Sims")
 app.mount("/assets", StaticFiles(directory=ROOT / "assets"), name="assets")
 app.mount("/audio", StaticFiles(directory=AUDIO_DIR), name="audio")
+
 PHASE_VISUALS = [
-    {
-        "background": "elternbett",
-        "characters": [
-            {"name": "Johanna", "pose": "lying", "position": "bed-left"},
-            {"name": "Lotta", "pose": "lying", "position": "bed-right"},
-        ],
-        "note": "Ray schläft in Lottas Zimmer",
-    },
-    {
-        "background": "kueche_gesamt",
-        "characters": [
-            {"name": "Johanna", "pose": "standing", "position": "left"},
-            {"name": "Ray", "pose": "standing", "position": "right"},
-        ],
-    },
-    {
-        "background": "jasper_zimmer",
-        "characters": [
-            {"name": "Johanna", "pose": "standing", "position": "left"},
-            {"name": "Jasper", "pose": "lying", "position": "bed-right"},
-        ],
-        "note": "Lotta wird ebenfalls geweckt",
-    },
+    {"background":"elternbett","characters":[{"name":"Johanna","pose":"lying","position":"bed-left"},{"name":"Lotta","pose":"lying","position":"bed-right"}],"note":"Ray schläft in Lottas Zimmer"},
+    {"background":"kueche_gesamt","characters":[{"name":"Johanna","pose":"standing","position":"left"},{"name":"Ray","pose":"standing","position":"right"}]},
+    {"background":"jasper_zimmer","characters":[{"name":"Johanna","pose":"standing","position":"left"},{"name":"Jasper","pose":"lying","position":"bed-right"}],"note":"Lotta wird ebenfalls geweckt"},
 ]
+
+scene_cache = []
+current_scene = -1
 
 
 def create_audio(story: str):
@@ -51,27 +35,19 @@ def create_audio(story: str):
         voice = game.load_piper_voice(voice_file)
         if voice is None:
             continue
-
         filename = f"{uuid.uuid4().hex}.wav"
         path = AUDIO_DIR / filename
         with wave.open(str(path), "wb") as wav_file:
             voice.synthesize_wav(text, wav_file)
-
-        result.append({
-            "speaker": speaker,
-            "text": text,
-            "audio": f"/audio/{filename}",
-        })
+        result.append({"speaker": speaker, "text": text, "audio": f"/audio/{filename}"})
     return result
 
 
-@app.post("/api/next-scene")
-def next_scene():
-    phase_before = game.phase_index
+def generate_scene(phase_index: int):
     story = game.next_scene(mock=os.getenv("SIMS_MOCK") == "1")
-    visual = PHASE_VISUALS[min(phase_before, len(PHASE_VISUALS) - 1)]
-
+    visual = PHASE_VISUALS[min(phase_index, len(PHASE_VISUALS) - 1)]
     return {
+        "index": phase_index,
         "time": game.world["time"],
         "story": story,
         **visual,
@@ -79,5 +55,58 @@ def next_scene():
     }
 
 
-# Catch-all static web app must be mounted last, otherwise it intercepts /api POST requests.
+@app.post("/api/next-scene")
+def next_scene():
+    global current_scene
+    target = current_scene + 1
+    if target < len(scene_cache):
+        current_scene = target
+        return scene_cache[current_scene]
+
+    if game.phase_index >= len(game.MORNING_PHASES):
+        raise HTTPException(409, "Der Morgen ist bereits zu Ende.")
+
+    scene = generate_scene(game.phase_index)
+    scene_cache.append(scene)
+    current_scene = len(scene_cache) - 1
+    return scene
+
+
+@app.post("/api/previous-scene")
+def previous_scene():
+    global current_scene
+    if current_scene <= 0:
+        raise HTTPException(409, "Das ist bereits die erste Szene.")
+    current_scene -= 1
+    return scene_cache[current_scene]
+
+
+@app.post("/api/replay-scene")
+def replay_scene():
+    if current_scene < 0:
+        raise HTTPException(409, "Noch keine Szene vorhanden.")
+    return scene_cache[current_scene]
+
+
+@app.post("/api/regenerate-scene")
+def regenerate_scene():
+    global current_scene
+    if current_scene < 0:
+        raise HTTPException(409, "Noch keine Szene vorhanden.")
+
+    # Regeneration is only safe for the latest generated phase because next_scene()
+    # advances the game state. Rewind the story/phase once, then generate it again.
+    if current_scene != len(scene_cache) - 1:
+        raise HTTPException(409, "Nur die zuletzt erzeugte Szene kann neu erzählt werden.")
+
+    phase = scene_cache[current_scene]["index"]
+    game.phase_index = phase
+    if len(game.story_history) > phase:
+        del game.story_history[phase:]
+
+    scene = generate_scene(phase)
+    scene_cache[current_scene] = scene
+    return scene
+
+
 app.mount("/", StaticFiles(directory=ROOT / "web", html=True), name="web")
