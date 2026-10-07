@@ -1,78 +1,25 @@
-const caption = document.querySelector("#caption");
-const clock = document.querySelector("#clock");
-const background = document.querySelector("#background");
-const characters = document.querySelector("#characters");
-const note = document.querySelector("#note");
-const buttons = [...document.querySelectorAll("button")];
-let currentScene = null;
-
-function assetName(name) { return name.toLowerCase(); }
-
-function renderScene(scene) {
-  currentScene = scene;
-  clock.textContent = scene.time;
-  caption.textContent = scene.story;
-  background.src = `/assets/backgrounds/${scene.background}.png`;
-  characters.replaceChildren();
-
-  for (const character of scene.characters) {
-    const img = document.createElement("img");
-    img.className = `character ${character.position}`;
-    img.dataset.name = character.name;
-    img.alt = character.name;
-    img.src = `/assets/characters/${assetName(character.name)}/${character.pose}.png`;
-    characters.appendChild(img);
-  }
-  note.hidden = !scene.note;
-  note.textContent = scene.note || "";
+const $=s=>document.querySelector(s);
+const caption=$("#caption"), clock=$("#clock"), background=$("#background"), characters=$("#characters"), note=$("#note");
+const buttons=[...document.querySelectorAll("button")]; let currentScene=null;
+function numberFromUrl(){const m=location.pathname.match(/^\/scene\/(\d+)$/);return m?Number(m[1]):1}
+function render(scene){
+ currentScene=scene; const n=scene.number || scene.index+1;
+ clock.textContent=scene.time; $("#scene-number").textContent=`Szene ${n}`; $("#scene-time").textContent=`· ${scene.time} Uhr`;
+ caption.textContent=scene.story; background.src=`/assets/backgrounds/${scene.background}.png`; characters.replaceChildren();
+ for(const c of scene.characters){const img=document.createElement("img");img.className=`character ${c.position}`;img.dataset.name=c.name;img.alt=c.name;img.src=`/assets/characters/${c.name.toLowerCase()}/${c.pose}.png`;characters.appendChild(img)}
+ note.hidden=!scene.note;note.textContent=scene.note||""; $("#previous").disabled=n<=1;
 }
-
-async function playSpeech(parts) {
-  for (const part of parts || []) {
-    const character = document.querySelector(`.character[data-name="${part.speaker}"]`);
-    character?.classList.add("speaking");
-    const audio = new Audio(part.audio);
-    try {
-      await audio.play();
-      await new Promise(resolve => {
-        audio.onended = resolve;
-        audio.onerror = resolve;
-      });
-    } finally {
-      character?.classList.remove("speaking");
-    }
-  }
+async function speak(parts){for(const p of parts||[]){const ch=document.querySelector(`.character[data-name="${p.speaker}"]`);ch?.classList.add("speaking");const a=new Audio(p.audio);try{await a.play();await new Promise(r=>{a.onended=r;a.onerror=r})}finally{ch?.classList.remove("speaking")}}}
+async function load(number,{generate=true,autoplay=false,push=false}={}){
+ buttons.forEach(b=>b.disabled=true);caption.textContent=generate?"Szene wird geladen …":"Laden …";
+ try{const r=await fetch(`/api/scenes/${number}`);if(!r.ok){const d=await r.json().catch(()=>({}));throw new Error(d.detail||r.statusText)}
+ const scene=await r.json();render(scene);if(push)history.pushState({number},"",`/scene/${number}`);if(autoplay)await speak(scene.speech)}
+ catch(e){caption.textContent=currentScene?.story||("Fehler: "+e.message)}
+ finally{buttons.forEach(b=>b.disabled=false);if(currentScene)$("#previous").disabled=(currentScene.index===0)}
 }
-
-async function requestScene(url, loadingText, autoplay=true) {
-  buttons.forEach(b => b.disabled = true);
-  caption.textContent = loadingText;
-  try {
-    const response = await fetch(url, {method: "POST"});
-    if (!response.ok) {
-      const data = await response.json().catch(() => ({}));
-      throw new Error(data.detail || response.statusText);
-    }
-    const scene = await response.json();
-    renderScene(scene);
-    if (autoplay) await playSpeech(scene.speech);
-  } catch (error) {
-    caption.textContent = currentScene?.story || ("Fehler: " + error.message);
-  } finally {
-    buttons.forEach(b => b.disabled = false);
-  }
-}
-
-document.querySelector("#next").onclick = () =>
-  requestScene("/api/next-scene", "Die nächste Szene entsteht …");
-
-document.querySelector("#previous").onclick = () =>
-  requestScene("/api/previous-scene", "Zurück …", false);
-
-document.querySelector("#replay").onclick = async () => {
-  if (!currentScene) return;
-  await playSpeech(currentScene.speech);
-};
-
-document.querySelector("#regenerate").onclick = () =>
-  requestScene("/api/regenerate-scene", "Die Szene wird neu erzählt …");
+$("#previous").onclick=()=>{const n=(currentScene?.index??0)+1;if(n>1)load(n-1,{push:true})};
+$("#next").onclick=()=>{const n=(currentScene?.index??-1)+2;load(n,{push:true,autoplay:true})};
+$("#replay").onclick=()=>currentScene&&speak(currentScene.speech);
+$("#regenerate").onclick=async()=>{if(!currentScene)return;buttons.forEach(b=>b.disabled=true);caption.textContent="Die Szene wird neu erzählt …";try{const n=currentScene.index+1;const r=await fetch(`/api/scenes/${n}/regenerate`,{method:"POST"});if(!r.ok){const d=await r.json();throw new Error(d.detail)}const s=await r.json();render(s);await speak(s.speech)}catch(e){caption.textContent=currentScene.story}finally{buttons.forEach(b=>b.disabled=false)}};
+window.onpopstate=()=>load(numberFromUrl());
+const initial=numberFromUrl();if(location.pathname==="/")history.replaceState({number:1},"","/scene/1");load(initial);
