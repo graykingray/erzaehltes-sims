@@ -17,9 +17,6 @@ AUDIO_DIR.mkdir(exist_ok=True)
 app = FastAPI(title="Erzähltes Sims")
 app.mount("/assets", StaticFiles(directory=ROOT / "assets"), name="assets")
 app.mount("/audio", StaticFiles(directory=AUDIO_DIR), name="audio")
-app.mount("/", StaticFiles(directory=ROOT / "web", html=True), name="web")
-
-
 PHASE_VISUALS = [
     {
         "background": "elternbett",
@@ -80,3 +77,7 @@ def next_scene():
         **visual,
         "speech": create_audio(story),
     }
+
+
+# Catch-all static web app must be mounted last, otherwise it intercepts /api POST requests.
+app.mount("/", StaticFiles(directory=ROOT / "web", html=True), name="web")
