@@ -585,8 +585,14 @@ Regeln:
 - Niemand spricht über sich selbst in der dritten Person.
 - Niemand nennt sich selbst beim eigenen Namen.
 - Kinder sprechen kindgerecht, Erwachsene normal.
-- Wörtliche Rede ausschließlich im Format Name: „Satz“.
 - Maximal zwei kurze direkte Reden.
+- Antworte als JSON-Objekt mit genau zwei Feldern: "story" und "parts".
+- "story" enthält die natürlich lesbare fertige Szene mit wörtlicher Rede.
+- "parts" ist eine Liste in Vorlesereihenfolge. Jeder Eintrag hat genau "speaker" und "text".
+- "speaker" ist ausschließlich einer von: Erzähler, Johanna, Ray, Lotta, Jasper, Helena.
+- Erzähler-Text und direkte Rede müssen in getrennten parts stehen. Bei direkter Rede MUSS speaker die tatsächlich sprechende Person sein.
+- Beispiel: {"story":"Johanna öffnet die Tür. „Guten Morgen“, sagt sie.","parts":[{"speaker":"Erzähler","text":"Johanna öffnet die Tür."},{"speaker":"Johanna","text":"Guten Morgen."}]}
+
 - Das Wort „Dao“ NICHT verwenden. Rays Gelassenheit darf nur indirekt spürbar sein.
 - Keine Überschrift, keine Uhrzeit, keine Erklärung.
 - Schreibe nur die fertige Szene.
@@ -603,6 +609,29 @@ Regeln:
         raise SystemExit(
             f"Unbekannter AI_PROVIDER: {AI_PROVIDER!r}. Erlaubt: ollama, openai"
         )
+
+    parts = None
+    if not mock:
+        raw = story.strip()
+        if raw.startswith("```"):
+            raw = re.sub(r"^```(?:json)?\\s*|\\s*```$", "", raw, flags=re.IGNORECASE)
+        try:
+            structured = json.loads(raw)
+            if isinstance(structured, dict) and isinstance(structured.get("story"), str):
+                story = structured["story"].strip()
+                candidate_parts = structured.get("parts")
+                if isinstance(candidate_parts, list):
+                    valid_speakers = {"Erzähler", *world["characters"].keys()}
+                    parts = [
+                        {"speaker": p["speaker"], "text": p["text"].strip()}
+                        for p in candidate_parts
+                        if isinstance(p, dict)
+                        and p.get("speaker") in valid_speakers
+                        and isinstance(p.get("text"), str)
+                        and p["text"].strip()
+                    ]
+        except json.JSONDecodeError:
+            pass
 
     story_history.append(story)
     phase_index += 1
