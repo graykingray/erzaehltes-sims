@@ -80,7 +80,7 @@ def create_audio(story, parts=None):
         voice=game.load_piper_voice(game.VOICE_FILES.get(speaker,game.PIPER_NARRATOR_VOICE))
         if voice is None: continue
         filename=f"{uuid.uuid4().hex}.wav"
-        with wave.open(str(AUDIO_DIR/filename),"wb") as wav_file: voice.synthesize_wav(spoken_text,wav_file,length_scale=game.PIPER_LENGTH_SCALE)
+        with wave.open(str(AUDIO_DIR/filename),"wb") as wav_file: voice.synthesize_wav(spoken_text,wav_file,syn_config=game.SynthesisConfig(length_scale=game.PIPER_LENGTH_SCALE))
         result.append({"speaker":speaker,"text":text,"audio":f"/audio/{filename}"})
     return result
 
