@@ -9,19 +9,12 @@
 <body>
   <main class="game">
     <section id="stage" class="stage">
-      <img class="background" src="../assets/backgrounds/elternbett.png" alt="Elternbett">
-      <div class="clock">06:05</div>
-
-      <img class="character lying johanna" src="../assets/characters/johanna/lying.png" alt="Johanna">
-      <img class="character lying lotta" src="../assets/characters/lotta/lying.png" alt="Lotta">
-
-      <aside class="offstage">💤 Ray schläft in Lottas Zimmer</aside>
-
-      <div class="caption">
-        Der Wecker klingelt. Johanna öffnet ein Auge und drückt noch einmal auf Schlummern.
-      </div>
+      <img id="background" class="background" alt="">
+      <div id="clock" class="clock">06:00</div>
+      <div id="characters"></div>
+      <aside id="note" class="offstage" hidden></aside>
+      <div id="caption" class="caption">Bereit für den Morgen?</div>
     </section>
-
     <button id="next">Nächste Szene ▶</button>
   </main>
   <script src="app.js"></script>
