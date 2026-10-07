@@ -89,12 +89,24 @@ def get_scene(number:int):
     scene=generate_scene(index); scene_cache.append(scene); save_scene(scene); return scene
 
 @app.post("/api/scenes/{number}/regenerate")
-def regenerate(number:int):
-    index=number-1
-    if index != len(scene_cache)-1: raise HTTPException(409,"Nur die zuletzt erzeugte Szene kann neu erzählt werden.")
-    game.phase_index=index
-    if len(game.story_history)>index: del game.story_history[index:]
-    scene=generate_scene(index); scene_cache[index]=scene; save_scene(scene); return scene
+def regenerate(number: int):
+    index = number - 1
+    if index < 0 or index >= len(scene_cache):
+        raise HTTPException(404, "Diese Szene gibt es nicht.")
+
+    # Later scenes depend on this story version, so discard them.
+    with connect_db() as db:
+        db.execute("DELETE FROM scenes WHERE phase_index > ?", (index,))
+    del scene_cache[index + 1:]
+
+    game.phase_index = index
+    if len(game.story_history) > index:
+        del game.story_history[index:]
+
+    scene = generate_scene(index)
+    scene_cache[index] = scene
+    save_scene(scene)
+    return scene
 
 @app.get("/")
 def root(): return FileResponse(ROOT/"web"/"index.html")
