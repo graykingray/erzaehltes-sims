@@ -72,9 +72,9 @@ def split_structured_speech(story):
     if after: parts.append({"speaker":"Erzähler","text":after})
     return parts or [{"speaker":"Erzähler","text":story.strip()}]
 
-def create_audio(story):
+def create_audio(story, parts=None):
     result=[]
-    for part in split_structured_speech(story):
+    for part in (parts or split_structured_speech(story)):
         speaker,text=part["speaker"],part["text"]
         voice=game.load_piper_voice(game.VOICE_FILES.get(speaker,game.PIPER_NARRATOR_VOICE))
         if voice is None: continue
@@ -85,9 +85,9 @@ def create_audio(story):
 
 init_db(); scene_cache=load_cache()
 for scene in scene_cache:
-    if scene.get("speech_format") != 3:
+    if scene.get("speech_format") != 4:
         scene["speech"]=create_audio(scene["story"])
-        scene["speech_format"]=3
+        scene["speech_format"]=4
         if scene["index"] < len(PHASE_VISUALS):
             visual=PHASE_VISUALS[scene["index"]]
             scene["background"]=visual["background"]
@@ -99,12 +99,18 @@ if scene_cache:
     game.story_history[:]=[s["story"] for s in scene_cache]
 
 def generate_scene(index):
-    story=game.next_scene(mock=os.getenv("SIMS_MOCK")=="1")
+    result=game.next_scene(mock=os.getenv("SIMS_MOCK")=="1")
+    if isinstance(result, dict):
+        story=result["story"]
+        parts=result.get("parts")
+    else:
+        story=result
+        parts=None
     visual=PHASE_VISUALS[index]
-    speech=create_audio(story)
+    speech=create_audio(story,parts)
     return {"index":index,"number":index+1,"time":game.world["time"],"story":story,
             "background":visual["background"],"characters":scene_characters(index,speech),
-            "note":visual.get("note"),"speech":speech,"speech_format":3}
+            "note":visual.get("note"),"speech":speech,"speech_format":4}
 
 @app.get("/api/scenes/{number}")
 def get_scene(number:int):
