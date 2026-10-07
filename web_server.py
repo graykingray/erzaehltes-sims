@@ -76,10 +76,11 @@ def create_audio(story, parts=None):
     result=[]
     for part in (parts or split_structured_speech(story)):
         speaker,text=part["speaker"],part["text"]
+        spoken_text=game.tts_text(text)
         voice=game.load_piper_voice(game.VOICE_FILES.get(speaker,game.PIPER_NARRATOR_VOICE))
         if voice is None: continue
         filename=f"{uuid.uuid4().hex}.wav"
-        with wave.open(str(AUDIO_DIR/filename),"wb") as wav_file: voice.synthesize_wav(text,wav_file)
+        with wave.open(str(AUDIO_DIR/filename),"wb") as wav_file: voice.synthesize_wav(spoken_text,wav_file)
         result.append({"speaker":speaker,"text":text,"audio":f"/audio/{filename}"})
     return result
 
