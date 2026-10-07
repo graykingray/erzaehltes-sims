@@ -648,6 +648,8 @@ Regeln:
         print(f"[DEBUG] Zeit: {world['time']}")
         print(f"[DEBUG] Aktive Figuren: {', '.join(phase['actors'])}")
 
+    if parts is not None:
+        return {"story": story, "parts": parts}
     return story
 
 
