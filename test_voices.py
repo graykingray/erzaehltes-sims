@@ -1,31 +1,38 @@
-"""Generate a small set of narrator samples from the multi-speaker German MLS Piper voice."""
+"""Generate narrator samples from the German single-speaker Piper voices already in the project."""
 
 from pathlib import Path
 import wave
 
 from piper import PiperVoice, SynthesisConfig
 
-MODEL = Path("voices/de_DE-mls-medium.onnx")
 OUT = Path("data/voice_samples")
 TEXT = "Lotta und Helena sind schon wach. Jasper sucht noch seine Schuhe."
-SPEAKERS = [0, 1, 2, 3, 4, 5, 10, 20, 30, 40, 50, 75, 100, 150, 200, 235]
+VOICES = {
+    "thorsten": "voices/de_DE-thorsten-medium.onnx",
+    "kerstin": "voices/de_DE-kerstin-low.onnx",
+    "ramona": "voices/de_DE-ramona-low.onnx",
+    "karlsson": "voices/de_DE-karlsson-low.onnx",
+    "eva": "voices/de_DE-eva_k-x_low.onnx",
+}
 
 
 def main():
-    if not MODEL.exists():
-        raise SystemExit(f"Stimme fehlt: {MODEL}")
-
     OUT.mkdir(parents=True, exist_ok=True)
-    voice = PiperVoice.load(str(MODEL))
 
-    for speaker_id in SPEAKERS:
-        target = OUT / f"mls-{speaker_id:03d}.wav"
+    for name, model in VOICES.items():
+        model_path = Path(model)
+        if not model_path.exists():
+            print(f"Überspringe {name}: {model_path} fehlt")
+            continue
+
+        target = OUT / f"{name}.wav"
         print(f"Erzeuge {target}")
+        voice = PiperVoice.load(str(model_path))
         with wave.open(str(target), "wb") as wav_file:
             voice.synthesize_wav(
                 TEXT,
                 wav_file,
-                syn_config=SynthesisConfig(speaker_id=speaker_id, length_scale=0.78),
+                syn_config=SynthesisConfig(length_scale=1.0),
             )
 
     print(f"\nFertig: {OUT}/")
