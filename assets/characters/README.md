@@ -1,16 +1,23 @@
-# Character sprites
+# Core character sprites
 
-First neutral character sprites for the visual Sims prototype.
+Minimal first asset set for the web prototype.
 
-- ray.png
-- johanna.png
-- jasper.png
-- lotta.png
-- helena.png
+Each character currently has:
 
-Suggested repository location:
+- `standing.png`
+- `lying.png`
 
-    assets/characters/
+Characters:
 
-The transparent padding around each sprite is intentional and leaves room
-for small CSS speaking animations (scale/bounce).
+- Ray
+- Johanna
+- Jasper
+- Lotta
+- Helena
+
+Suggested usage:
+
+    assets/characters/<name>/standing.png
+    assets/characters/<name>/lying.png
+
+Walking, sitting and modular facial expressions can be added later.
