@@ -598,7 +598,7 @@ Regeln:
 - "parts" ist eine Liste in Vorlesereihenfolge. Jeder Eintrag hat genau "speaker" und "text".
 - "speaker" ist ausschließlich einer von: Erzähler, Johanna, Ray, Lotta, Jasper, Helena.
 - Erzähler-Text und direkte Rede müssen in getrennten parts stehen. Bei direkter Rede MUSS speaker die tatsächlich sprechende Person sein.
-- Beispiel: {"story":"Johanna öffnet die Tür. „Guten Morgen“, sagt sie.","parts":[{"speaker":"Erzähler","text":"Johanna öffnet die Tür."},{"speaker":"Johanna","text":"Guten Morgen."}]}
+- Beispiel: {{"story":"Johanna öffnet die Tür. „Guten Morgen“, sagt sie.","parts":[{{"speaker":"Erzähler","text":"Johanna öffnet die Tür."}},{{"speaker":"Johanna","text":"Guten Morgen."}}]}}
 
 - Das Wort „Dao“ NICHT verwenden. Rays Gelassenheit darf nur indirekt spürbar sein.
 - Keine Überschrift, keine Uhrzeit, keine Erklärung.
