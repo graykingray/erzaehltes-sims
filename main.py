@@ -176,8 +176,15 @@ def load_piper_voice(voice_file: str):
         return None
 
 
+def tts_text(text: str) -> str:
+    # Piper/phonemizer tends to lengthen the "o" in Lotta. A doubled
+    # consonant is not always interpreted as German vowel shortening, so
+    # use a pronunciation-only spelling. The visible story stays unchanged.
+    return re.sub(r"\\bLotta\\b", "Lotta", text)
+
+
 def speak_part(speaker: str, text: str) -> None:
-    text = text.strip()
+    text = tts_text(text.strip())
     if not text:
         return
 
